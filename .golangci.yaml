@@ -1,0 +1,20 @@
+linters:
+  enable-all: true
+  disable:
+    - tagliatelle
+    - godot
+    - depguard
+    - exhaustivestruct
+    - exhaustruct
+    - ireturn
+    - godox
+severity:
+  default-severity: error
+  rules:
+    - linters:
+      - musttag
+      - nonamedreturns
+      severity: warning
+    - linters:
+      - nlreturn
+      severity: info
