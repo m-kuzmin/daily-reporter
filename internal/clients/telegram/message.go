@@ -4,14 +4,24 @@ import (
 	"log"
 )
 
-// telegramUpdateProcessor interface provides a uniform interface
-// for processing telegram updates. An update only holds state about
-// itself (an update) and then calls other functions to handle persistant
-// state like conversation state or data about the user.
+/*
+telegramUpdateProcessor provides a uniform interface for processing telegram updates.
+An implementation struct only holds fields about itself such as update id, message text, etc.
+Conversation state is stored outside the update and an implementation can mutate it.
+
+Caller of processTelegramUpdate doesn't know anything about what the update is. It doesn't
+matter if its a message, poll option, etc. The update knows what it is and will do the things
+it needs to.
+*/
 type UpdateProcessor interface {
-	processTelegramUpdate() []telegramBotActor
+	processTelegramUpdate(state ConversationStateHandler) (ConversationStateHandler, []telegramBotActor)
 }
 
+/*
+Represents a JSON response from the telegram API. Since an update could be many
+things like a message, button, poll option, etc the update struct implements
+`UpdateProcessor` which performs the actions neccessary to respond to an update.
+*/
 type update struct {
 	ID            int64          `json:"update_id"`
 	Message       *message       `json:"message,omitempty"`
@@ -32,20 +42,18 @@ type chat struct {
 	ID int64 `json:"id"`
 }
 
-func (u *update) processTelegramUpdate() []telegramBotActor {
+// Identifies which type the message is and then calls a method on the state to handle it.
+func (u *update) processTelegramUpdate(state ConversationStateHandler) (
+	ConversationStateHandler, []telegramBotActor) {
 	switch {
 	case u.Message != nil:
 		if u.Message.From == nil || u.Message.Chat == nil || u.Message.Text == nil {
-			return []telegramBotActor{}
+			return state, []telegramBotActor{}
 		}
 
-		state := getConversationState(*u.Message.From, *u.Message.Chat)
-		new_state, actions := state.telegramMessage(*u.Message)
-		setConversationState(*u.Message.From, *u.Message.Chat, new_state)
-
-		return actions
+		return state.telegramMessage(*u.Message)
 	default:
-		log.Println("Not handling update", u)
-		return []telegramBotActor{}
+		log.Println("Not handling update", *u)
+		return state, []telegramBotActor{}
 	}
 }

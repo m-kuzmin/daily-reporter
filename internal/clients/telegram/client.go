@@ -56,36 +56,30 @@ which are going to process all updates in parallel
 # Panics
 
 This function considers 0 or less goroutines as fatal.
-
-# Race conditions
-
-If the user sends 2 messages quickly then both messages could be processing at the same time.
-They could modify same state twice negating the effect of the previous mutation, do it
-in the wrong order or cause another race condition.
-
-## FIX:
-
-The updateQueue in `getUpdates` should not be directly linked to the one in
-`processUpdates`. Instead there should be another thread that appends the state of a
-conversation to the update itself (which is already required by the update implementation)
-and then holds back any updates that will require state that is currently in the queue.
-When that state returns back to the storage, subsequent updates can proceed in the order
-they came out of `getUpdates`.
 */
 func (c *Client) Start(goroutines uint) {
 	if goroutines < 1 {
-		panic(fmt.Sprintf("Should never start a telegram bot with less than 1 processor threads. Was asked to use %d threads.", goroutines))
+		panic(fmt.Sprintf(
+			"Should never start a telegram bot with less than 1 processor threads. Was asked to use %d threads.",
+			goroutines))
 	}
 	var (
 		updateQueue = make(chan UpdateProcessor, goroutines)
+		stateQueue  = make(chan updateHandler)
 		ctx, cancel = context.WithCancel(context.Background())
 	)
 	c.stopProcessing = cancel
 
 	go c.getUpdates(ctx.Done(), updateQueue)
+	go c.stateQueue(updateQueue, stateQueue)
 	for i := uint(0); i < goroutines; i++ {
-		go c.processUpdates(updateQueue)
+		go c.processUpdates(stateQueue)
 	}
+}
+
+type updateHandler struct {
+	processor UpdateProcessor
+	state     ConversationStateHandler
 }
 
 func (c *Client) Stop() {
@@ -176,7 +170,8 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 					continue
 				}
 				if data.Parameters.MigrateToChatId != 0 {
-					log.Fatalf("API asked to migrate to chat ID %d, which is an unsupported operation", data.Parameters.MigrateToChatId)
+					log.Fatalf("API asked to migrate to chat ID %d, which is an unsupported operation",
+						data.Parameters.MigrateToChatId)
 				}
 				continue
 			}
@@ -198,18 +193,45 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 	}
 }
 
+// Combines an update with conversation state
+func (c *Client) stateQueue(updateCh chan UpdateProcessor, stateCh chan<- updateHandler) {
+	c.wg.Add(1)
+	defer c.wg.Done()
+	// TODO: Hold back updates that could cause race conditions in parallel processing
+	defer close(stateCh)
+	for upd := range updateCh {
+		stateCh <- updateHandler{
+			processor: upd,
+			state:     c.takeState(),
+		}
+	}
+}
+
+/*
+TODO: should return state for the update that will be processed.
+Should also block if the state is taken already
+(Should take some args to look up the state for the conversation)
+*/
+func (c *Client) takeState() ConversationStateHandler {
+	return &rootConversationState{}
+}
+
+// TODO: Stores the state and allows other threads to take it via takeState
+func (c *Client) releaseState(ConversationStateHandler) {}
+
 /*
 processUpdates method should be run in a goroutine and will process updates
 that come through the channel.
 
-Cancel this goroutine by closing the channel
+Stop this goroutine by closing the channel
 */
-func (c *Client) processUpdates(updateQueue <-chan UpdateProcessor) {
+func (c *Client) processUpdates(updateQueue <-chan updateHandler) {
 	c.wg.Add(1)
 	defer c.wg.Done()
 
 	for update := range updateQueue {
-		for _, action := range update.processTelegramUpdate() {
+		state, actions := update.processor.processTelegramUpdate(update.state)
+		for _, action := range actions {
 			endpoint, query := action.telegramBotAction()
 
 			u := url.URL{
@@ -252,6 +274,7 @@ func (c *Client) processUpdates(updateQueue <-chan UpdateProcessor) {
 						endpoint, query.Encode(), isOk.ErrorCode, isOk.Description)
 				}
 			}
+			c.releaseState(state)
 		}
 	}
 }

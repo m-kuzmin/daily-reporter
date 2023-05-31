@@ -7,18 +7,8 @@ import (
 	"strings"
 )
 
-func getConversationState(user user, chat chat) telegramConverser {
-	return &rootConversationState{}
-}
-func setConversationState(user user, chat chat, new_state telegramConverser) {
-	if getConversationState(user, chat) == new_state {
-		return
-	}
-	panic("unimplemented")
-}
-
-type telegramConverser interface {
-	telegramMessage(message) (telegramConverser, []telegramBotActor)
+type ConversationStateHandler interface {
+	telegramMessage(message) (ConversationStateHandler, []telegramBotActor)
 }
 
 type telegramBotActor interface {
@@ -45,7 +35,7 @@ func (m sendMessage) telegramBotAction() (endpoint string, params url.Values) {
 
 type rootConversationState struct{}
 
-func (s *rootConversationState) telegramMessage(message message) (telegramConverser, []telegramBotActor) {
+func (s *rootConversationState) telegramMessage(message message) (ConversationStateHandler, []telegramBotActor) {
 	log.Printf("Got a message %q", *message.Text)
 	if strings.TrimSpace(*message.Text) == "/start" {
 		return s, []telegramBotActor{sendMessage{
