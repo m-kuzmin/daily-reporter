@@ -13,18 +13,21 @@ import (
 func main() {
 	client := telegram.NewClient("api.telegram.org", mustTelegramToken())
 	client.Start(10)
-	waitForCtrlC()
-	log.Println("Recieved ^C, stopping the bot (Graceful shutdown).")
+	defer client.Stop()
+
+	waitSigterm()
+	log.Println("Recieved ^C (SIGTERM), stopping the bot (Graceful shutdown).")
+
 	go func() {
-		waitForCtrlC()
+		waitSigterm()
 		log.Println("If you ^C again the server will force stop!")
-		waitForCtrlC()
+		waitSigterm()
 		log.Println("Server force-stopped.")
 		os.Exit(1)
 	}()
-	client.Stop()
 }
 
+// Looks for the token in CLI args
 func mustTelegramToken() string {
 	token := flag.String("tg-token", "", "Telegram token for the bot")
 	flag.Parse()
@@ -34,7 +37,8 @@ func mustTelegramToken() string {
 	return *token
 }
 
-func waitForCtrlC() {
+// Doesn't return until Ctrl+C is pressed in the terminal or SIGTERM is received in another way
+func waitSigterm() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
