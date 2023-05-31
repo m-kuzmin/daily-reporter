@@ -111,8 +111,8 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 
 	query := url.Values{} // Stores the update id offset, so should not reset between iterations
 
-	query.Add("limit", "100")  // How many updates can all goroutines handle
-	query.Add("timeout", "10") // How long the network request should pend for before returning an empty update list
+	query.Add("limit", "100") // How many updates can all goroutines handle
+	query.Add("timeout", "5") // How long the network request should pend for before returning an empty update list
 
 	log.Println("Telegram bot processor started")
 	for {
