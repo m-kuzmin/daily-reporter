@@ -14,14 +14,30 @@ import (
 	"time"
 )
 
+// A client to interact with the telegram API. Start the client and then call Stop to stop it gracefully.
+// The client may take some time to shutdown if it has work to do.
+//
+// # Example
+//
+//	client := telegram.NewClient("api.telegram.org", "TOKEN")
+//	client.Start(10) // 10 threads
+//
+//	if shouldStop { // whatever the trigger for stop is
+//	    client.Stop()
+//	}
 type Client struct {
-	host           string
-	basePath       string
+	host           string // URL of the API server, without `https://`. E.g. `api.telegram.org`
+	basePath       string // `basePath + endpointPath` for making requests. Constructed from `"bot"+token`
 	client         http.Client
-	wg             sync.WaitGroup
-	stopProcessing context.CancelFunc
+	wg             sync.WaitGroup     //Used to make sure all processor threads are done
+	stopProcessing context.CancelFunc // Triggers the shutdown
 }
 
+// Creates a new client.
+//
+// `host` is the address to the server, without `https://`
+//
+// `token` is the bot token for the API
 func NewClient(host, token string) Client {
 	return Client{
 		host:     host,
@@ -30,6 +46,32 @@ func NewClient(host, token string) Client {
 	}
 }
 
+/*
+Starts the client in the background. It will fetch updates via `Client.getUpdates()`
+and sends them to a queue. Queue items are recieved by one of `Client.processUpdates()`
+which are going to process all updates in parallel
+
+`goroutines` specifies how many threads to use in parallel.
+
+# Panics
+
+This function considers 0 or less goroutines as fatal.
+
+# Race conditions
+
+If the user sends 2 messages quickly then both messages could be processing at the same time.
+They could modify same state twice negating the effect of the previous mutation, do it
+in the wrong order or cause another race condition.
+
+## FIX:
+
+The updateQueue in `getUpdates` should not be directly linked to the one in
+`processUpdates`. Instead there should be another thread that appends the state of a
+conversation to the update itself (which is already required by the update implementation)
+and then holds back any updates that will require state that is currently in the queue.
+When that state returns back to the storage, subsequent updates can proceed in the order
+they came out of `getUpdates`.
+*/
 func (c *Client) Start(goroutines uint) {
 	if goroutines < 1 {
 		panic(fmt.Sprintf("Should never start a telegram bot with less than 1 processor threads. Was asked to use %d threads.", goroutines))
@@ -52,7 +94,7 @@ func (c *Client) Stop() {
 }
 
 /*
-getUpdates method should be run in a goroutine and will call getUpdates
+getUpdates method should be run in a goroutine and will call `/getUpdates`
 telegram API endpoint, parse the incoming updates and send them to the
 queue for processing.
 
@@ -75,9 +117,8 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 
 	query := url.Values{} // Stores the update id offset, so should not reset between iterations
 
-	const cycleTime = 5 * time.Second // Minimum time between fetching updates
-	query.Add("limit", "100")         // How many updates can all goroutines handle
-	query.Add("timeout", "10")        // How long the network request should pend for before returning an empty update list
+	query.Add("limit", "100")  // How many updates can all goroutines handle
+	query.Add("timeout", "10") // How long the network request should pend for before returning an empty update list
 
 	log.Println("Telegram bot processor started")
 	for {
@@ -85,9 +126,8 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 		case <-stopCh:
 			return
 		default:
-			startTime := time.Now() // Used for rate limiting network requests
-
 			// Fetch the update
+
 			u := url.URL{
 				Scheme:   "https",
 				Host:     c.host,
@@ -97,12 +137,21 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 			req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 			if err != nil {
 				// panic because a request should always be valid
-				log.Fatal("Request should always be valid, %w", err)
+				log.Fatal("Error: Request should always be valid, %w", err)
 			}
 			resp, err := c.client.Do(req)
 			if err != nil {
 				log.Printf("Network error: (%s): %s", c.host, err)
 			}
+
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				log.Printf("Could not read responce body: %s", err)
+			}
+
+			// Parse
+
 			var data struct {
 				Ok          bool   `json:"ok"`
 				ErrorCode   int    `json:"error_code,omitempty"`
@@ -114,11 +163,6 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 				Result []update `json:"result"`
 			}
 
-			body, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if err != nil {
-				log.Printf("Could not read responce body: %s", err)
-			}
 			if err = json.Unmarshal(body, &data); err != nil {
 				log.Printf("Parsing /getUpdates json error: %s", err)
 			}
@@ -137,18 +181,19 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 				continue
 			}
 
+			// Queue updates
+
 			for _, upd := range data.Result {
 				log.Printf("Sending update #%d to the queue", upd.ID)
 				updateCopy := upd
 				updateQueue <- &updateCopy
 			}
+
+			// Prevents new updates from being the same thing
 			if len(data.Result) >= 1 {
 				last_update := data.Result[len(data.Result)-1]
 				query.Set("offset", strconv.FormatInt(last_update.ID+1, 10))
 			}
-
-			dtFetching := time.Since(startTime) // How long did it take to make a network request and queue updates
-			time.Sleep(cycleTime - dtFetching)  // If the difference is negative, continue. Otherwise dont spam the API
 		}
 	}
 }
@@ -173,12 +218,15 @@ func (c *Client) processUpdates(updateQueue <-chan UpdateProcessor) {
 				Path:     path.Join(c.basePath, endpoint),
 				RawQuery: query.Encode(),
 			}
+
+			// TODO: DRY the request code here, and in `getUpdates`
+
 			req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 			if err != nil {
 				// panic because a request should always be valid
 				log.Fatal("Request should always be valid, %w", err)
 			}
-			resp, err := c.client.Do(req) // ignoring the responce for now
+			resp, err := c.client.Do(req)
 			if err != nil {
 				log.Printf("Network error: (%s): %s", c.host, err)
 			} else {
@@ -200,7 +248,8 @@ func (c *Client) processUpdates(updateQueue <-chan UpdateProcessor) {
 				}
 
 				if !isOk.Ok {
-					log.Printf("An error occured while performing /%s%s: (%d) %s", endpoint, query.Encode(), isOk.ErrorCode, isOk.Description)
+					log.Printf("An error occured while performing /%s?%s: (%d) %s",
+						endpoint, query.Encode(), isOk.ErrorCode, isOk.Description)
 				}
 			}
 		}
