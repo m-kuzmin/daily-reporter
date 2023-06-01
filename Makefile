@@ -8,13 +8,13 @@
 
 # Meta actions
 
-# Not very pedantic run
+# Check and run locally
 default: lint build run
 # Checks that the project will build and run without errors
-check: lint build test docker-build
+check: lint test build-all
 # Builds all targets
-all: docker-build build
-# First time docker preparation, after just run make docker-run
+build-all: docker-build build
+# First time docker preparation, afterwards just run make docker-run
 docker: docker-build docker-run
 
 # Native/Local (i.e. not docker)
