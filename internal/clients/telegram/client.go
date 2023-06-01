@@ -120,72 +120,20 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 		case <-stopCh:
 			return
 		default:
-			// Fetch the update
-
-			u := url.URL{
-				Scheme:   "https",
-				Host:     c.host,
-				Path:     path.Join(c.basePath, "getUpdates"),
-				RawQuery: query.Encode(),
-			}
-			req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+			req := c.mustGetRequest("getUpdates", query, nil)
+			result, err := doApiRequest[[]update](c, req, "/getUpdates")
 			if err != nil {
-				// panic because a request should always be valid
-				log.Fatal("Error: Request should always be valid, %w", err)
-			}
-			resp, err := c.client.Do(req)
-			if err != nil {
-				log.Printf("Network error: (%s): %s", c.host, err)
-			}
-
-			body, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if err != nil {
-				log.Printf("Could not read responce body: %s", err)
-			}
-
-			// Parse
-
-			var data struct {
-				Ok          bool   `json:"ok"`
-				ErrorCode   int    `json:"error_code,omitempty"`
-				Description string `json:"description,omitempty"`
-				Parameters  struct {
-					MigrateToChatId int64         `json:"migrate_to_chat_id,omitempty"`
-					RertyAfter      time.Duration `json:"retry_after,omitempty"`
-				} `json:"parameters,omitempty"`
-				Result []update `json:"result"`
-			}
-
-			if err = json.Unmarshal(body, &data); err != nil {
-				log.Printf("Parsing /getUpdates json error: %s", err)
-			}
-			if !data.Ok {
-				log.Printf("Telegram API error, %d: %q", data.ErrorCode, data.Description)
-				if data.ErrorCode == 401 {
-					log.Fatal("Token is likely invalid")
-				}
-				if data.Parameters.RertyAfter != 0 {
-					time.Sleep(time.Duration(data.Parameters.RertyAfter * time.Second))
-					continue
-				}
-				if data.Parameters.MigrateToChatId != 0 {
-					log.Fatalf("API asked to migrate to chat ID %d, which is an unsupported operation",
-						data.Parameters.MigrateToChatId)
-				}
 				continue
 			}
 
-			// Queue updates
-
-			for _, upd := range data.Result {
+			for _, upd := range *result {
 				log.Printf("Sending update #%d to the queue", upd.ID)
 				updateQueue <- &upd
 			}
 
 			// Prevents new updates from being the same thing
-			if len(data.Result) >= 1 {
-				last_update := data.Result[len(data.Result)-1]
+			if len(*result) >= 1 {
+				last_update := (*result)[len(*result)-1]
 				query.Set("offset", strconv.FormatInt(last_update.ID+1, 10))
 			}
 		}
@@ -233,47 +181,89 @@ func (c *Client) processUpdates(updateQueue <-chan updateHandler) {
 		for _, action := range actions {
 			endpoint, query := action.telegramBotAction()
 
-			u := url.URL{
-				Scheme:   "https",
-				Host:     c.host,
-				Path:     path.Join(c.basePath, endpoint),
-				RawQuery: query.Encode(),
-			}
-
-			// TODO: DRY the request code here, and in `getUpdates`
-
-			req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+			req := c.mustGetRequest(endpoint, query, nil)
+			_, err := doApiRequest[struct{}](c, req, "/"+endpoint)
 			if err != nil {
-				// panic because a request should always be valid
-				log.Fatal("Request should always be valid, %w", err)
+				log.Printf("Error while performing bot action: %s", err)
 			}
-			resp, err := c.client.Do(req)
-			if err != nil {
-				log.Printf("Network error: (%s): %s", c.host, err)
-			} else {
-				var isOk struct {
-					Ok          bool   `json:"ok"`
-					ErrorCode   int    `json:"error_code,omitempty"`
-					Description string `json:"description,omitempty"`
-
-					Result []message `json:"message"`
-				}
-
-				body, err := io.ReadAll(resp.Body)
-				resp.Body.Close()
-				if err != nil {
-					log.Printf("Could not read responce body: %s", err)
-				}
-				if err = json.Unmarshal(body, &isOk); err != nil {
-					log.Printf("Parsing /%s action responce json error: %s", endpoint, err)
-				}
-
-				if !isOk.Ok {
-					log.Printf("An error occured while performing /%s?%s: (%d) %s",
-						endpoint, query.Encode(), isOk.ErrorCode, isOk.Description)
-				}
-			}
-			c.releaseState(state)
 		}
+		c.releaseState(state)
 	}
+}
+
+// Makes a GET method request from components. Panics if the request cannot be created
+func (c *Client) mustGetRequest(endpoint string, query url.Values, body io.Reader) *http.Request {
+	u := url.URL{
+		Scheme:   "https",
+		Host:     c.host,
+		Path:     path.Join(c.basePath, endpoint),
+		RawQuery: query.Encode(),
+	}
+	req, err := http.NewRequest(http.MethodGet, u.String(), body)
+	if err != nil {
+		// panic because a request should always be valid
+		log.Fatal("Error: Request should always be valid, %w", err)
+	}
+	return req
+}
+
+/*
+Performs the Telegram API request, does error handling, wraps errors and then returns the payload of the request
+
+# Panics
+
+Panics if the status code is 401 Unauthorized which is usually caused by an invalid bot token.
+
+Or if the telegram API sends a "Migrate to chat ID" error, which is unsupported as of now and could cause weird bugs.
+*/
+func doApiRequest[T any](c *Client, req *http.Request, logID string) (_ *T, err error) {
+	for i := 0; i < 3; i++ {
+		resp, err := c.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("Network error: (%s): %s", logID, err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("Could not read responce body: (%s): %s", logID, err)
+		}
+
+		// Parse
+
+		var data struct {
+			Ok          bool   `json:"ok"`
+			ErrorCode   int    `json:"error_code,omitempty"`
+			Description string `json:"description,omitempty"`
+			Parameters  struct {
+				MigrateToChatId int64         `json:"migrate_to_chat_id,omitempty"`
+				RertyAfter      time.Duration `json:"retry_after,omitempty"`
+			} `json:"parameters,omitempty"`
+			Result T `json:"result"`
+		}
+
+		if err = json.Unmarshal(body, &data); err != nil {
+			err = fmt.Errorf("Parsing %s json responce error: %s", logID, err)
+			continue
+		}
+		if !data.Ok {
+			err = fmt.Errorf("Telegram API error, %d: %q", data.ErrorCode, data.Description)
+			log.Println(err)
+			if data.ErrorCode == http.StatusUnauthorized {
+				log.Fatal("Token is likely invalid")
+			}
+			if data.Parameters.RertyAfter != 0 {
+				time.Sleep(time.Duration(data.Parameters.RertyAfter * time.Second))
+				continue
+			}
+			if data.Parameters.MigrateToChatId != 0 {
+				log.Fatalf("API asked to migrate to chat ID %d, which is an unsupported operation",
+					data.Parameters.MigrateToChatId)
+			}
+			continue
+		}
+
+		return &data.Result, nil
+	}
+	return nil, err
 }
