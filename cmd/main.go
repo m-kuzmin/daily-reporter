@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"os"
 	"os/signal"
@@ -11,8 +10,10 @@ import (
 )
 
 func main() {
-	client := telegram.NewClient("api.telegram.org", mustTelegramToken())
-	client.Start(10)
+	conf := mustNewConfig()
+
+	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token)
+	client.Start(conf.Telegram.Threads)
 	defer client.Stop()
 
 	waitSigterm()
@@ -25,16 +26,6 @@ func main() {
 		log.Println("Server force-stopped.")
 		os.Exit(1)
 	}()
-}
-
-// Looks for the token in CLI args
-func mustTelegramToken() string {
-	token := flag.String("tg-token", "", "Telegram token for the bot")
-	flag.Parse()
-	if *token == "" {
-		log.Fatal("No token has been provided for the telegram bot, use -tg-token TOKEN to pass it in")
-	}
-	return *token
 }
 
 // Doesn't return until Ctrl+C is pressed in the terminal or SIGTERM is received in another way
