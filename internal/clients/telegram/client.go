@@ -180,8 +180,7 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 
 			for _, upd := range data.Result {
 				log.Printf("Sending update #%d to the queue", upd.ID)
-				updateCopy := upd
-				updateQueue <- &updateCopy
+				updateQueue <- &upd
 			}
 
 			// Prevents new updates from being the same thing
