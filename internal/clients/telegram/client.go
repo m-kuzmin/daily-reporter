@@ -225,6 +225,9 @@ Performs the Telegram API request, does error handling, wraps errors and then re
 Panics if the status code is 401 Unauthorized which is usually caused by an invalid bot token.
 
 Or if the telegram API sends a "Migrate to chat ID" error, which is unsupported as of now and could cause weird bugs.
+
+Will also panic if the telegram API returns an error many timess in a row (probably 10 times, but look at the source to see
+the exact value.
 */
 func doApiRequest[T any](c *Client, req *http.Request, logID string) (*T, error) {
 	const retry = 3
