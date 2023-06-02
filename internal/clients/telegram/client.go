@@ -115,7 +115,9 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 	query.Add("timeout", "5") // How long the network request should pend for before returning an empty update list
 
 	log.Println("Telegram bot processor started")
-	for {
+	const retry = 10
+	var failures = 0
+	for failures < retry {
 		select {
 		case <-stopCh:
 			return
@@ -123,7 +125,12 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 			req := c.mustGetRequest("getUpdates", query, nil)
 			result, err := doApiRequest[[]update](c, req, "/getUpdates")
 			if err != nil {
+				failures++
+				fmt.Printf("/getUpdates failure #%d: %s\n", failures, err)
 				continue
+			} else {
+				failures = 0
+				fmt.Println("/getUpdates failure count reset to 0")
 			}
 
 			for _, upd := range *result {
@@ -138,6 +145,7 @@ func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdatePro
 			}
 		}
 	}
+	panic("Bot encountered too many errors while interacting with Telegram API")
 }
 
 // Combines an update with conversation state
@@ -184,7 +192,7 @@ func (c *Client) processUpdates(updateQueue <-chan updateHandler) {
 			req := c.mustGetRequest(endpoint, query, nil)
 			_, err := doApiRequest[struct{}](c, req, "/"+endpoint)
 			if err != nil {
-				log.Printf("Error while performing bot action: %s", err)
+				log.Printf("Error while performing bot action: %s\n", err)
 			}
 		}
 		c.releaseState(state)
@@ -210,14 +218,17 @@ func (c *Client) mustGetRequest(endpoint string, query url.Values, body io.Reade
 /*
 Performs the Telegram API request, does error handling, wraps errors and then returns the payload of the request
 
+`logID` is the string that will be in the logs and error messages and is used to track what method failed. Can be arbitrary.
+
 # Panics
 
 Panics if the status code is 401 Unauthorized which is usually caused by an invalid bot token.
 
 Or if the telegram API sends a "Migrate to chat ID" error, which is unsupported as of now and could cause weird bugs.
 */
-func doApiRequest[T any](c *Client, req *http.Request, logID string) (_ *T, err error) {
-	for i := 0; i < 3; i++ {
+func doApiRequest[T any](c *Client, req *http.Request, logID string) (*T, error) {
+	const retry = 3
+	for i := 0; i < retry; i++ {
 		resp, err := c.client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("Network error: (%s): %s", logID, err)
@@ -243,11 +254,10 @@ func doApiRequest[T any](c *Client, req *http.Request, logID string) (_ *T, err 
 		}
 
 		if err = json.Unmarshal(body, &data); err != nil {
-			err = fmt.Errorf("Parsing %s json responce error: %s", logID, err)
-			continue
+			return nil, fmt.Errorf("Parsing %s json responce error: %s", logID, err)
 		}
 		if !data.Ok {
-			err = fmt.Errorf("Telegram API error, %d: %q", data.ErrorCode, data.Description)
+			err = fmt.Errorf("Telegram API error (%s), %d: %q", logID, data.ErrorCode, data.Description)
 			log.Println(err)
 			if data.ErrorCode == http.StatusUnauthorized {
 				log.Fatal("Token is likely invalid")
@@ -265,5 +275,5 @@ func doApiRequest[T any](c *Client, req *http.Request, logID string) (_ *T, err 
 
 		return &data.Result, nil
 	}
-	return nil, err
+	return nil, fmt.Errorf("Telegram API error (%s), retry limit (%d) exceeded", logID, retry)
 }
