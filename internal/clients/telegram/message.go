@@ -1,7 +1,9 @@
 package telegram
 
 import (
+	"fmt"
 	"log"
+	"strconv"
 )
 
 /*
@@ -15,6 +17,7 @@ it needs to.
 */
 type UpdateProcessor interface {
 	processTelegramUpdate(state ConversationStateHandler) (ConversationStateHandler, []telegramBotActor)
+	stateHandle() (string, error)
 }
 
 /*
@@ -36,11 +39,44 @@ type message struct {
 	Text           *string  `json:"text,omitempty"`
 }
 
-type callbackQuery struct{}
-type user struct{}
-type chat struct {
-	ID int64 `json:"id"`
+// Generated a sendMessage with ChatID == message.Chat.ID
+func (m *message) sameChatPlain(text string) sendMessage {
+	return sendMessage{
+		ChatID:    strconv.FormatInt(m.Chat.ID, 10),
+		Text:      text,
+		ParseMode: "",
+	}
 }
+
+func (m *message) sameChatMarkdownV2(text string) sendMessage {
+	return sendMessage{
+		ChatID:    strconv.FormatInt(m.Chat.ID, 10),
+		Text:      text,
+		ParseMode: "MarkdownV2",
+	}
+}
+func (m *message) sameChatHtml(text string) sendMessage {
+	return sendMessage{
+		ChatID:    strconv.FormatInt(m.Chat.ID, 10),
+		Text:      text,
+		ParseMode: "html",
+	}
+}
+
+type callbackQuery struct{}
+type user struct {
+	Id int64 `json:"id"`
+}
+type chat struct {
+	ID   int64  `json:"id"`
+	Type string `json:"type"`
+}
+
+const (
+	// Used in chat.Type and means that this is bot's direct messages
+	chatTypePrivate = "private"
+	chatTypeGroup   = "group"
+)
 
 // Identifies which type the message is and then calls a method on the state to handle it.
 func (u *update) processTelegramUpdate(state ConversationStateHandler) (
@@ -55,5 +91,15 @@ func (u *update) processTelegramUpdate(state ConversationStateHandler) (
 	default:
 		log.Println("Not handling update", *u)
 		return state, []telegramBotActor{}
+	}
+}
+func (u *update) stateHandle() (string, error) {
+	switch {
+	case u.Message != nil && u.Message.Chat.Type == chatTypePrivate && u.Message.From != nil:
+		return "private:" + strconv.FormatInt(u.Message.From.Id, 10), nil
+	case u.Message != nil && u.Message.Chat.Type == chatTypeGroup && u.Message.From != nil:
+		return strconv.FormatInt(u.Message.Chat.ID, 10) + ":" + strconv.FormatInt(u.Message.From.Id, 10), nil
+	default:
+		return "", fmt.Errorf("%s", fmt.Sprintf("Unknown update, cannot generate handle for it: %v", u))
 	}
 }

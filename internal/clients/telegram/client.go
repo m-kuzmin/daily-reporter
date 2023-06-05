@@ -26,11 +26,12 @@ import (
 //	    client.Stop()
 //	}
 type Client struct {
-	host           string // URL of the API server, without `https://`. E.g. `api.telegram.org`
-	basePath       string // `basePath + endpointPath` for making requests. Constructed from `"bot"+token`
-	client         http.Client
-	wg             sync.WaitGroup     //Used to make sure all processor threads are done
-	stopProcessing context.CancelFunc // Triggers the shutdown
+	host               string // URL of the API server, without `https://`. E.g. `api.telegram.org`
+	basePath           string // `basePath + endpointPath` for making requests. Constructed from `"bot"+token`
+	client             http.Client
+	wg                 sync.WaitGroup     //Used to make sure all processor threads are done
+	stopProcessing     context.CancelFunc // Triggers the shutdown
+	conversationStates map[string]ConversationStateHandler
 }
 
 // Creates a new client.
@@ -58,6 +59,7 @@ which are going to process all updates in parallel
 This function considers 0 or less goroutines as fatal.
 */
 func (c *Client) Start(goroutines uint) {
+	c.conversationStates = make(map[string]ConversationStateHandler)
 	if goroutines < 1 {
 		panic(fmt.Sprintf(
 			"Should never start a telegram bot with less than 1 processor threads. Was asked to use %d threads.",
@@ -149,7 +151,7 @@ func (c *Client) stateQueue(updateCh chan UpdateProcessor, stateCh chan<- update
 	for upd := range updateCh {
 		stateCh <- updateHandler{
 			processor: upd,
-			state:     c.takeState(),
+			state:     c.takeState(&upd),
 		}
 	}
 }
@@ -159,12 +161,31 @@ TODO: should return state for the update that will be processed.
 Should also block if the state is taken already
 (Should take some args to look up the state for the conversation)
 */
-func (c *Client) takeState() ConversationStateHandler {
-	return &rootConversationState{}
+func (c *Client) takeState(u *UpdateProcessor) ConversationStateHandler {
+	handle, err := (*u).stateHandle()
+
+	if err != nil {
+		log.Printf("Error converting an update to a state handle: %s", err)
+		return &rootConversationState{}
+	}
+
+	if s, found := c.conversationStates[handle]; found {
+		log.Println("Lent state:", s)
+		return s
+	} else {
+		return &rootConversationState{}
+	}
 }
 
 // TODO: Stores the state and allows other threads to take it via takeState
-func (c *Client) releaseState(ConversationStateHandler) {}
+func (c *Client) releaseState(u *UpdateProcessor, s ConversationStateHandler) {
+	if handle, err := (*u).stateHandle(); err != nil {
+		log.Printf("Error converting an update to a state handle: %s", err)
+	} else {
+		log.Println("Released state:", s)
+		c.conversationStates[handle] = s
+	}
+}
 
 /*
 processUpdates method should be run in a goroutine and will process updates
@@ -187,7 +208,7 @@ func (c *Client) processUpdates(updateQueue <-chan updateHandler) {
 				log.Printf("Error while performing bot action: %s", err)
 			}
 		}
-		c.releaseState(state)
+		c.releaseState(&update.processor, state)
 	}
 }
 

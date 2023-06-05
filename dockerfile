@@ -3,8 +3,12 @@ FROM golang:1.20
 WORKDIR /app
 
 COPY go.mod .
-COPY cmd/main.go ./cmd/main.go
+COPY go.sum .
+COPY config.toml .
 COPY Makefile .
+COPY cmd cmd
+COPY internal internal
+COPY api api
 
 RUN make build
 COPY build/daily-reporter .

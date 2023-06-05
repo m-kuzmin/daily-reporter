@@ -1,41 +1,43 @@
-# m-kuzmin/daily-repoter Makefile
-#
-# Users should use meta actions, while meta actions utilize atomic
-# operations (like build, run) that have no dependencies or side
-# effects. This allows the user to compose a meta action without
-# an atomic action like `build` or `run` triggering `lint` twice
-.PHONY: default check all docker build run docker-build docker-run lint test
+.PHONY: default check \
+	docker-build docker-run \
+	lint test run build
 
-# Meta actions
+# Frequently used commands
 
-# Check and run locally
-default: lint build run
-# Checks that the project will build and run without errors
-check: lint test build-all
-# Builds all targets
-build-all: docker-build build
-# First time docker preparation, afterwards just run make docker-run
-docker: docker-build docker-run
+default: lint run
 
-# Native/Local (i.e. not docker)
-
-build:
-	mkdir -p build
-	go build -o build/daily-reporter cmd/*.go
-run:
-	go run cmd/*.go
-
-# Docker
-
-docker-build:
-	docker build . -t daily-reporter:latest
-docker-run:
-	docker run daily-reporter:latest
-
-# Helpers/Additional commands
+run: build
+	./build/daily-reporter
 
 lint:
 	golangci-lint run
+
 test:
 	go test ./...
+
+check: lint test build/daily-reporter docker-build
+
+# Building the app
+
+build: api/github/generated.go
+	mkdir -p build
+	CGO_ENABLED=0 GOOS=linux go build -o build/daily-reporter cmd/*.go
+
+# Github GraphQL API
+
+api/github/generated.go: api/github/genqlient.yaml \
+	api/github/schema.graphql \
+	$(wildcard internal/clients/github/*.go)
+	go run github.com/Khan/genqlient api/github/genqlient.yaml
+
+api/github/schema.graphql:
+	wget -O api/github/schema.graphql https://docs.github.com/public/schema.docs.graphql
+
+# Docker commands
+
+docker-build:
+	docker build . -t daily-reporter:latest --rm
+
+docker-run: docker-build
+	docker run daily-reporter:latest
 

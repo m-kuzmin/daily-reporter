@@ -1,0 +1,7 @@
+schema: ./schema.graphql
+operations: ../../internal/clients/github/*.go
+generated: ./generated.go
+package: github_graphql
+bindings:
+  DateTime:
+    type: time.Time
