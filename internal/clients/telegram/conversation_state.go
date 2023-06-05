@@ -113,10 +113,16 @@ func (s *addApiKeyConversationState) telegramMessage(message message) (Conversat
 	if message.Chat.Type != chatTypePrivate {
 		return &rootConversationState{}, []telegramBotActor{message.sameChatMarkdownV2(
 			`If what you've sent me just now is a GitHub API token, *immediately* [revoke it](https://github.com/settings/tokens)\!
-You should never try to add tokens in public chat.`)}
+You should never try to add tokens in a public chat.`)}
 	}
 
-	if message.Text != nil {
+	if message.Text == nil {
+		return s, []telegramBotActor{}
+	}
+	switch strings.TrimSpace(*message.Text) {
+	case "/cancel":
+		return &rootConversationState{}, []telegramBotActor{message.sameChatPlain("Canceled.")}
+	default:
 		client := github.NewClient(*message.Text)
 		login, err := client.Login()
 		if err != nil {
@@ -125,8 +131,6 @@ You should never try to add tokens in public chat.`)}
 		}
 		return &rootConversationState{}, []telegramBotActor{message.sameChatHtml(
 			fmt.Sprintf(`Nice to meet you, <a href="https://github.com/%s">%s</a>!`, login, login))}
-	} else {
-		return s, []telegramBotActor{}
-	}
 
+	}
 }
