@@ -14,18 +14,27 @@ import (
 	"time"
 )
 
-// A client to interact with the telegram API. Start the client and then call Stop to stop it gracefully.
-// The client may take some time to shutdown if it has work to do.
-//
-// TODO(doc): Add info from https://gist.github.com/m-kuzmin/f6675dad25fc74daacef3c7d0b5d2375
-// # Example
-//
-//	client := telegram.NewClient("api.telegram.org", "TOKEN")
-//	client.Start(10) // 10 threads
-//
-//	if shouldStop { // whatever the trigger for stop is
-//	    client.Stop()
-//	}
+const (
+	getUpdatesLimit              = "20" // How many updates should telegram API send to us
+	getUpdatesLongPollingTimeout = "5"  // The server will wait this many sec before telling us there's nothing to process
+)
+
+/*
+A Client to interact with the telegram API. Start the client and then call Stop to stop it gracefully.
+The client may take some time to shutdown if it has work to do.
+
+# Example
+
+	// main.go
+
+	client := telegram.NewClient("api.telegram.org", "TOKEN")
+
+	client.Start(10) // 10 threads
+	defer client.Stop()
+
+	// some function that returns when the shutdown should happen
+	blockUntilExitSignal()
+*/
 type Client struct {
 	host           string // URL of the API server, without `https://`. E.g. `api.telegram.org`
 	basePath       string // `basePath + endpointPath` for making requests. Constructed from `"bot"+token`
@@ -34,11 +43,15 @@ type Client struct {
 	stopProcessing context.CancelFunc // Triggers the shutdown
 }
 
-// NewClient creates a new client.
-//
-// `host` is the address to the server, without `https://`
-//
-// `token` is the bot token for the API
+/*
+NewClient creates a new client.
+
+`host` is the address to the server, without `https://`
+
+`token` is the bot token for the API (Get it from @BotFather)
+
+Creating the client is not enough, you have to `Start()` it.
+*/
 func NewClient(host, token string) Client {
 	return Client{
 		host:     host,
@@ -48,45 +61,85 @@ func NewClient(host, token string) Client {
 }
 
 /*
-Start starts the client in the background. It will fetch updates via `Client.getUpdates()`
-and sends them to a queue. Queue items are received by one of `Client.processUpdates()`
-which are going to process all updates in parallel
+Start starts the client in the background. This function is non-blocking, meaning you dont have to
+execute it in a goroutine (also look into `Stop()`).
 
-`goroutines` specifies how many threads to use in parallel.
+`goroutines` specifies how many threads to use for processing telegram updates. Refer to
+/docs/telegram-client/README.md for explanation of what these goroutines are and what they do.
+
+This function creates a few goroutines inside. The first one is for fetching updates from Telegram.
+There are also `goroutines` amount (argument to this func) of processor goroutines. These are used
+to process multiple updates at the same time.
+
+If we didnt process updates in parallel, then things that should be fast (like /start command)
+would have to wait in a queue. If in the same queue there is a "heavy" update that does a lot of
+things (e.g. read from database, query the API, etc) then all the quick-to-handle updates will just
+sit there.
+
+These heavy updates are heavy because they take a lot of time. But most likely that isn't because
+they do some crazy computation. More likely because they are blocked by some IO. So all they are
+really doing is idling.
+
+Instead of wasting that idle time, a different goroutine could be executed.
 
 # Panics
 
-This function considers 0 or less goroutines as fatal.
+This function requires the number of goroutines to be at least one.
 */
-// TODO(doc): Explain what this func does and how to use it/how it works.
 func (c *Client) Start(goroutines uint) {
-	if goroutines < 1 {
+	if goroutines == 0 {
 		panic(fmt.Sprintf(
 			"Should never start a telegram bot with less than 1 processor threads. Was asked to use %d threads.",
 			goroutines))
 	}
 
 	var (
-		updateQueue = make(chan UpdateProcessor, goroutines)
-		stateQueue  = make(chan updateHandler)
+		updateCh    = make(chan UpdateProcessor, goroutines)
+		stateCh     = make(chan updateHandler)
 		ctx, cancel = context.WithCancel(context.Background())
 	)
 
 	c.stopProcessing = cancel
 
-	go c.getUpdates(ctx, updateQueue)
-	go c.stateQueue(updateQueue, stateQueue)
+	go c.getUpdates(ctx, updateCh)
+	go c.stateQueue(updateCh, stateCh)
 
 	for i := uint(0); i < goroutines; i++ {
-		go c.processUpdates(stateQueue)
+		go c.processUpdates(stateCh)
 	}
 }
 
+// updateHandler is used to join an update with conversation state for that update.
 type updateHandler struct {
-	processor UpdateProcessor
-	state     ConversationStateHandler
+	processor UpdateProcessor          // The update itself
+	state     ConversationStateHandler // Conveersation state
 }
 
+/*
+Stop stops the telegram client gracefully. This function returns after the server
+is no longer doing any work.
+
+Call this function when your application shutsdown (aka `defer` it in main)
+
+Do keep in mind that your main cant look like this (or equvalent):
+
+		client.Start(1)
+		client.Stop() // instantly call Stop
+
+		// this is bad too
+	    defer client.Stop()
+		return
+
+Because then your telegram client is going to stop immediately after you started it.
+Instead you can create a channel for SIGTERM (`Ctrl+C`) and `<-` on that.
+
+	client.Start(1)
+	defer client.Stop()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c // blocks until you do ^C in terminal
+*/
 func (c *Client) Stop() {
 	c.stopProcessing()
 	c.wg.Wait()
@@ -100,24 +153,22 @@ queue for processing.
 After an update has been fetched and sent to the queue its considered
 as processed by the telegram API.
 
-Stop this goroutine by closing the stopCh. You can get an instance of stopCh
-from `ctx.Done()` When this function returns it also closes the channel
-effectively stopping all processor goroutines that are listening on it.
-
 # Panics
 
-This function considers invalid request URLs as fatal. To avoid this make sure
+This function will panic if it cannot construct a valid API URL. To avoid this make sure
 the parameters to Client's constructor are valid.
+
+It also panics if there were too many errors while talking to the telegram API
 */
-func (c *Client) getUpdates(ctx context.Context, updateQueue chan<- UpdateProcessor) {
+func (c *Client) getUpdates(ctx context.Context, updateCh chan<- UpdateProcessor) {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	defer close(updateQueue)
+	defer close(updateCh)
 
 	query := url.Values{} // Stores the update id offset, so should not reset between iterations
 
-	query.Add("limit", "100") // How many updates can all goroutines handle
-	query.Add("timeout", "5") // How long the network request should pend for before returning an empty update list
+	query.Add("limit", getUpdatesLimit)
+	query.Add("timeout", getUpdatesLongPollingTimeout)
 
 	log.Println("Telegram bot processor started")
 
@@ -129,12 +180,12 @@ func (c *Client) getUpdates(ctx context.Context, updateQueue chan<- UpdateProces
 		case <-ctx.Done():
 			return
 		default:
-			req := c.mustGetRequest(ctx, "getUpdates", query, nil)
+			req := c.mustNewGetRequest(ctx, "getUpdates", query, nil)
 
-			result, err := doAPIRequest[[]update](c, req, "/getUpdates")
+			result, err := doAPIRequest[[]update](c, req)
 			if err != nil {
 				failures++
-				log.Printf("/getUpdates failure #%d: %s\n", failures, err)
+				log.Printf("/getUpdates failure (try %d): %s\n", failures, err)
 
 				continue
 			}
@@ -146,8 +197,8 @@ func (c *Client) getUpdates(ctx context.Context, updateQueue chan<- UpdateProces
 			for i, upd := range *result {
 				log.Printf("Sending update #%d to the queue", upd.ID)
 
-				// upd is not ok here because of https://stacko6verflow.com/questions/62446118/implicit-memory-aliasing-in-for-loop
-				updateQueue <- &(*result)[i]
+				// upd is not ok here because of https://stackoverflow.com/questions/62446118/implicit-memory-aliasing-in-for-loop
+				updateCh <- &(*result)[i]
 			}
 
 			// Prevents new updates from being the same thing
@@ -157,11 +208,19 @@ func (c *Client) getUpdates(ctx context.Context, updateQueue chan<- UpdateProces
 			}
 		}
 	}
-	panic("Bot encountered too many errors while interacting with Telegram API")
+	panic(fmt.Sprintf("Bot encountered too many errors (%d) while interacting with Telegram API", retry))
 }
 
-// Combines an update with conversation state
-func (c *Client) stateQueue(updateCh chan UpdateProcessor, stateCh chan<- updateHandler) {
+/*
+stateQueue manages conversation state. It should be run in a goroutine. The job of this
+function is to take updates from `updateCh`, combine them with conversation state and send
+that to `stateCh`.
+
+However it is not as simple as that. After an update is processed it could change the state
+of the conversation. If two updates try to use and change the same state they could create
+weird bugs. Refer to /docs/telegram-client/README.md for details.
+*/
+func (c *Client) stateQueue(updateCh <-chan UpdateProcessor, stateCh chan<- updateHandler) {
 	c.wg.Add(1)
 	defer c.wg.Done()
 
@@ -189,25 +248,25 @@ func (c *Client) takeState() ConversationStateHandler { //nolint:ireturn
 func (c *Client) releaseState(ConversationStateHandler) {}
 
 /*
-processUpdates method should be run in a goroutine and will process updates
+processUpdates should be run in a goroutine and will process updates
 that come through the channel.
 
 Stop this goroutine by closing the channel
 */
-func (c *Client) processUpdates(updateQueue <-chan updateHandler) {
+func (c *Client) processUpdates(updateCh <-chan updateHandler) {
 	c.wg.Add(1)
 	defer c.wg.Done()
 
-	for update := range updateQueue {
+	for update := range updateCh {
 		state, actions := update.processor.processTelegramUpdate(update.state)
 		for _, action := range actions {
 			endpoint, query := action.telegramBotAction()
 
-			req := c.mustGetRequest(context.Background(), endpoint, query, nil)
+			req := c.mustNewGetRequest(context.Background(), endpoint, query, nil)
 
-			_, err := doAPIRequest[struct{}](c, req, "/"+endpoint)
+			_, err := doAPIRequest[struct{}](c, req)
 			if err != nil {
-				log.Printf("Error while performing bot action: %s\n", err)
+				log.Printf("Error while performing /%s: %s\n", endpoint, err)
 			}
 		}
 
@@ -216,8 +275,13 @@ func (c *Client) processUpdates(updateQueue <-chan updateHandler) {
 }
 
 // Makes a GET method request from components. Panics if the request cannot be created
-func (c *Client) mustGetRequest(ctx context.Context, endpoint string, query url.Values, body io.Reader) *http.Request {
-	url := url.URL{ //nolint:exhaustivestruct,exhaustruct // Zero-values are okay here
+func (c *Client) mustNewGetRequest(
+	ctx context.Context,
+	endpoint string,
+	query url.Values,
+	body io.Reader,
+) *http.Request {
+	url := url.URL{
 		Scheme:   "https",
 		Host:     c.host,
 		Path:     path.Join(c.basePath, endpoint),
@@ -233,36 +297,32 @@ func (c *Client) mustGetRequest(ctx context.Context, endpoint string, query url.
 	return req
 }
 
-//nolint:dupword
 /*
 doApiRequest performs the Telegram API request, does error handling, wraps errors
 and then returns the payload of the request
 
-`logID` is the string that will be in the logs and error messages and is used
-to track what method failed. Can be arbitrary.
-
 # Panics
 
-Panics if the status code is 401 Unauthorized which is usually caused by an invalid bot token.
+doApiRequest Panics if the status code is 401 Unauthorized which is usually caused by an invalid bot token.
 
 Or if the telegram API sends a "Migrate to chat ID" error, which is unsupported as of now and could cause weird bugs.
 
 Will also panic if the telegram API returns an error many timess in a row (probably 10 times,
 but look at the source to see the exact value.
 */
-func doAPIRequest[T any](c *Client, req *http.Request, logID string) (*T, error) {
+func doAPIRequest[T any](c *Client, req *http.Request) (*T, error) {
 	const retry = 3
 	for i := 0; i < retry; i++ {
 		resp, err := c.client.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("network error: (%s): %w", logID, err)
+			return nil, fmt.Errorf("network error: %w", err)
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 
 		if err != nil {
-			return nil, fmt.Errorf("could not read response body: (%s): %w", logID, err)
+			return nil, fmt.Errorf("could not read response body: %w", err)
 		}
 
 		// Parse
@@ -279,11 +339,11 @@ func doAPIRequest[T any](c *Client, req *http.Request, logID string) (*T, error)
 		}
 
 		if err = json.Unmarshal(body, &data); err != nil {
-			return nil, fmt.Errorf("parsing %s json response error: %w", logID, err)
+			return nil, fmt.Errorf("parsing json response error: %w", err)
 		}
 
 		if !data.Ok {
-			err = apiError{What: logID, ErrorCode: data.ErrorCode, Description: data.Description}
+			err = apiError{ErrorCode: data.ErrorCode, Description: data.Description}
 			log.Println(err)
 
 			if data.ErrorCode == http.StatusUnauthorized {
@@ -307,24 +367,27 @@ func doAPIRequest[T any](c *Client, req *http.Request, logID string) (*T, error)
 		return &data.Result, nil
 	}
 
-	return nil, retryError{What: logID, Retries: retry}
+	return nil, retryError{Retries: retry}
 }
 
+// apiError from the telegram API.
 type apiError struct {
-	What        string // What action caused the error
 	ErrorCode   int    // Error code (usually can be interpreted as HTTP response codes)
 	Description string // Human readable explanation of the status code
 }
 
 func (e apiError) Error() string {
-	return fmt.Sprintf("telegram API error (%s), %d: %q", e.What, e.ErrorCode, e.Description)
+	return fmt.Sprintf("telegram API error: %d: %q", e.ErrorCode, e.Description)
 }
 
+/*
+retryError means that there were attempts to try again, but the limit was exceeded and the
+operation is cosidered as failed.
+*/
 type retryError struct {
-	What    string // What action was done `Retries` times and failed.
-	Retries int    // How many times the action was performed before giving up
+	Retries int // How many times the action was performed before giving up
 }
 
 func (e retryError) Error() string {
-	return fmt.Sprintf("telegram API error (%s), retry limit (%d) exceeded: ", e.What, e.Retries)
+	return fmt.Sprintf("too many telegram API errors, retry limit (%d) exceeded.", e.Retries)
 }

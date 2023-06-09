@@ -6,12 +6,18 @@ import (
 
 /*
 telegramUpdateProcessor provides a uniform interface for processing telegram updates.
-An implementation struct only holds fields about itself such as update id, message text, etc.
-Conversation state is stored outside the update and an implementation can mutate it.
+The job of the struct implementing this interface is to call the correct method on
+`state`. The state will do the actual work and the resulting state together with bot
+actions is returned from the function.
 
-Caller of processTelegramUpdate doesn't know anything about what the update is. It doesn't
-matter if its a message, poll option, etc. The update knows what it is and will do the things
-it needs to.
+Basically all it does is this:
+
+	func(foo *Foo) processTelegramUpdate(state ConversationStateHander) (
+		ConversationStateHandler,
+		[]telegramBotActo
+	) {
+		return state.telegramMessage(foo)
+	}
 */
 type UpdateProcessor interface {
 	processTelegramUpdate(state ConversationStateHandler) (ConversationStateHandler, []telegramBotActor)
@@ -46,7 +52,8 @@ type chat struct {
 
 // Identifies which type the message is and then calls a method on the state to handle it.
 func (u *update) processTelegramUpdate(state ConversationStateHandler) ( //nolint:ireturn
-	ConversationStateHandler, []telegramBotActor) { //nolint:gofumpt
+	ConversationStateHandler, []telegramBotActor,
+) {
 	switch {
 	case u.Message != nil:
 		if u.Message.From == nil || u.Message.Chat == nil || u.Message.Text == nil {

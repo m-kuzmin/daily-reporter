@@ -15,9 +15,10 @@ type sendMessage struct {
 	ParseMode string
 }
 
-func (m sendMessage) telegramBotAction() (endpoint string, params url.Values) { //nolint:nonamedreturns
-	endpoint = "sendMessage"
-	params = url.Values{}
+// TODO: Change url.Values to JSON encoded body
+func (m sendMessage) telegramBotAction() (string, url.Values) {
+	endpoint := "sendMessage"
+	params := url.Values{}
 	params.Add("chat_id", m.ChatID)
 	params.Add("text", m.Text)
 
@@ -25,5 +26,5 @@ func (m sendMessage) telegramBotAction() (endpoint string, params url.Values) { 
 		params.Add("parse_mode", m.ParseMode)
 	}
 
-	return
+	return endpoint, params
 }
