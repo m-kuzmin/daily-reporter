@@ -20,7 +20,7 @@ type UpdateProcessor interface {
 /*
 Represents a JSON response from the telegram API. Since an update could be many
 things like a message, button, poll option, etc the update struct implements
-`UpdateProcessor` which performs the actions neccessary to respond to an update.
+`UpdateProcessor` which performs the actions necessary to respond to an update.
 */
 type update struct {
 	ID            int64          `json:"update_id"`
@@ -37,14 +37,16 @@ type message struct {
 }
 
 type callbackQuery struct{}
+
 type user struct{}
+
 type chat struct {
 	ID int64 `json:"id"`
 }
 
 // Identifies which type the message is and then calls a method on the state to handle it.
-func (u *update) processTelegramUpdate(state ConversationStateHandler) (
-	ConversationStateHandler, []telegramBotActor) {
+func (u *update) processTelegramUpdate(state ConversationStateHandler) ( //nolint:ireturn
+	ConversationStateHandler, []telegramBotActor) { //nolint:gofumpt
 	switch {
 	case u.Message != nil:
 		if u.Message.From == nil || u.Message.Chat == nil || u.Message.Text == nil {
@@ -54,6 +56,7 @@ func (u *update) processTelegramUpdate(state ConversationStateHandler) (
 		return state.telegramMessage(*u.Message)
 	default:
 		log.Println("Not handling update", *u)
+
 		return state, []telegramBotActor{}
 	}
 }

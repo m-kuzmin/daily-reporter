@@ -31,6 +31,7 @@ type rootConversationState struct{}
 
 func (s *rootConversationState) telegramMessage(message message) (ConversationStateHandler, []telegramBotActor) {
 	log.Printf("Got a message %q", *message.Text)
+
 	switch strings.ToLower(strings.TrimSpace(*message.Text)) {
 	case "/start":
 		return s, []telegramBotActor{sendMessage{
@@ -58,6 +59,7 @@ You can use /help to get a list of commands. The one you will need right now is 
 
 	default:
 		log.Printf("Not handling %q", *message.Text)
+
 		return s, []telegramBotActor{}
 	}
 }
