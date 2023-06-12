@@ -7,13 +7,12 @@ import (
 )
 
 /*
-telegramUpdateProcessor provides a uniform interface for processing telegram updates.
-An implementation struct only holds fields about itself such as update id, message text, etc.
-Conversation state is stored outside the update and an implementation can mutate it.
+telegramUpdateProcessor provides a uniform interface for processing telegram updates. An implementation struct only
+holds fields about itself such as update id, message text, etc. Conversation state is stored outside the update and an
+implementation can mutate it.
 
-Caller of processTelegramUpdate doesn't know anything about what the update is. It doesn't
-matter if its a message, poll option, etc. The update knows what it is and will do the things
-it needs to.
+Caller of processTelegramUpdate doesn't know anything about what the update is. It doesn't matter if its a message, poll
+option, etc. The update knows what it is and will do the things it needs to.
 */
 type UpdateProcessor interface {
 	processTelegramUpdate(state ConversationStateHandler) (ConversationStateHandler, []telegramBotActor)
@@ -21,9 +20,9 @@ type UpdateProcessor interface {
 }
 
 /*
-Represents a JSON response from the telegram API. Since an update could be many
-things like a message, button, poll option, etc the update struct implements
-`UpdateProcessor` which performs the actions neccessary to respond to an update.
+Represents a JSON response from the telegram API. Since an update could be many things like a message, button, poll
+option, etc the update struct implements `UpdateProcessor` which performs the actions neccessary to respond to an
+update.
 */
 type update struct {
 	ID            int64          `json:"update_id"`
@@ -55,6 +54,7 @@ func (m *message) sameChatMarkdownV2(text string) sendMessage {
 		ParseMode: "MarkdownV2",
 	}
 }
+
 func (m *message) sameChatHtml(text string) sendMessage {
 	return sendMessage{
 		ChatID:    strconv.FormatInt(m.Chat.ID, 10),
@@ -63,10 +63,12 @@ func (m *message) sameChatHtml(text string) sendMessage {
 	}
 }
 
-type callbackQuery struct{}
-type user struct {
-	Id int64 `json:"id"`
-}
+type (
+	callbackQuery struct{}
+	user          struct {
+		Id int64 `json:"id"`
+	}
+)
 type chat struct {
 	ID   int64  `json:"id"`
 	Type string `json:"type"`
@@ -80,7 +82,8 @@ const (
 
 // Identifies which type the message is and then calls a method on the state to handle it.
 func (u *update) processTelegramUpdate(state ConversationStateHandler) (
-	ConversationStateHandler, []telegramBotActor) {
+	ConversationStateHandler, []telegramBotActor,
+) {
 	switch {
 	case u.Message != nil:
 		if u.Message.From == nil || u.Message.Chat == nil || u.Message.Text == nil {
@@ -93,6 +96,7 @@ func (u *update) processTelegramUpdate(state ConversationStateHandler) (
 		return state, []telegramBotActor{}
 	}
 }
+
 func (u *update) stateHandle() (string, error) {
 	switch {
 	case u.Message != nil && u.Message.Chat.Type == chatTypePrivate && u.Message.From != nil:

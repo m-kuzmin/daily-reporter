@@ -17,7 +17,8 @@ type Client struct {
 func NewClient(token string) Client {
 	return Client{client: genqlient.NewClient(githubGraphQLEndpoit,
 		&http.Client{
-			Transport: &authedTransport{token: token, wrapped: http.DefaultTransport}})}
+			Transport: &authedTransport{token: token, wrapped: http.DefaultTransport},
+		})}
 }
 
 type authedTransport struct {

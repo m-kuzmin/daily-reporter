@@ -14,31 +14,35 @@ import (
 	"time"
 )
 
-// A client to interact with the telegram API. Start the client and then call Stop to stop it gracefully.
-// The client may take some time to shutdown if it has work to do.
-//
-// # Example
-//
-//	client := telegram.NewClient("api.telegram.org", "TOKEN")
-//	client.Start(10) // 10 threads
-//
-//	if shouldStop { // whatever the trigger for stop is
-//	    client.Stop()
-//	}
+/*
+A client to interact with the telegram API. Start the client and then call Stop to stop it gracefully. The client may
+take some time to shutdown if it has work to do.
+
+# Example
+
+	client := telegram.NewClient("api.telegram.org", "TOKEN")
+	client.Start(10) // 10 threads
+
+	if shouldStop { // whatever the trigger for stop is
+		client.Stop()
+	}
+*/
 type Client struct {
 	host               string // URL of the API server, without `https://`. E.g. `api.telegram.org`
 	basePath           string // `basePath + endpointPath` for making requests. Constructed from `"bot"+token`
 	client             http.Client
-	wg                 sync.WaitGroup     //Used to make sure all processor threads are done
+	wg                 sync.WaitGroup     // Used to make sure all processor threads are done
 	stopProcessing     context.CancelFunc // Triggers the shutdown
 	conversationStates map[string]ConversationStateHandler
 }
 
-// Creates a new client.
-//
-// `host` is the address to the server, without `https://`
-//
-// `token` is the bot token for the API
+/*
+Creates a new client.
+
+`host` is the address to the server, without `https://`
+
+`token` is the bot token for the API
+*/
 func NewClient(host, token string) Client {
 	return Client{
 		host:     host,
@@ -90,21 +94,18 @@ func (c *Client) Stop() {
 }
 
 /*
-getUpdates method should be run in a goroutine and will call `/getUpdates`
-telegram API endpoint, parse the incoming updates and send them to the
-queue for processing.
+getUpdates method should be run in a goroutine and will call `/getUpdates` telegram API endpoint, parse the incoming
+updates and send them to the queue for processing.
 
-After an update has been fetched and sent to the queue its considered
-as processed by the telegram API.
+After an update has been fetched and sent to the queue its considered as processed by the telegram API.
 
-Stop this goroutine by closing the stopCh. You can get an instance of stopCh
-from `ctx.Done()` When this function returns it also closes the channel
-effectively stopping all processor goroutines that are listening on it.
+Stop this goroutine by closing the stopCh. You can get an instance of stopCh from `ctx.Done()` When this function
+returns it also closes the channel effectively stopping all processor goroutines that are listening on it.
 
 # Panics
 
-This function considers invalid request URLs as fatal. To avoid this make sure
-the parameters to Client's constructor are valid.
+This function considers invalid request URLs as fatal. To avoid this make sure the parameters to Client's constructor
+are valid.
 */
 func (c *Client) getUpdates(stopCh <-chan struct{}, updateQueue chan<- UpdateProcessor) {
 	c.wg.Add(1)
@@ -157,13 +158,21 @@ func (c *Client) stateQueue(updateCh chan UpdateProcessor, stateCh chan<- update
 }
 
 /*
-TODO: should return state for the update that will be processed.
-Should also block if the state is taken already
-(Should take some args to look up the state for the conversation)
+TODO(takeState, releaseState): Once takeState gives out an instance of state for a conversation it should not be able to
+give out another instance. If there are 2 things that hold on to state to the same conversation they could try to update
+it (save it to state storage) which would result in one state being lost and the final state is whatever was saved last.
+They could also be operating on invalid state.
+
+Consider 2 updates: /quiz and then /start. And lets say /quiz makes the bot send a question and the next message (in
+this case /start) would be the answer. If we process /quiz and /start at the same time /start update would have no idea
+that it should be handled as an answer to /quiz, and the user will get 2 messages: the first one is the quiz question
+and the second one is the greeting message from /start. Then the user tries to answer the quiz and nothing happens
+because /start saved the state last and overwrote what /quiz did.
+
+TODO: If the state for a conversation was given out and not released via releaseState() this should fail or block.
 */
 func (c *Client) takeState(u *UpdateProcessor) ConversationStateHandler {
 	handle, err := (*u).stateHandle()
-
 	if err != nil {
 		log.Printf("Error converting an update to a state handle: %s", err)
 		return &rootConversationState{}
@@ -177,7 +186,7 @@ func (c *Client) takeState(u *UpdateProcessor) ConversationStateHandler {
 	}
 }
 
-// TODO: Stores the state and allows other threads to take it via takeState
+// TODO: Should unlock the lock that prevents takeState() from giving out state for the conversation.
 func (c *Client) releaseState(u *UpdateProcessor, s ConversationStateHandler) {
 	if handle, err := (*u).stateHandle(); err != nil {
 		log.Printf("Error converting an update to a state handle: %s", err)
@@ -188,10 +197,9 @@ func (c *Client) releaseState(u *UpdateProcessor, s ConversationStateHandler) {
 }
 
 /*
-processUpdates method should be run in a goroutine and will process updates
-that come through the channel.
+processUpdates method should be run in a goroutine and will process updates that come through the channel.
 
-Stop this goroutine by closing the channel
+Stop this goroutine by closing the channel.
 */
 func (c *Client) processUpdates(updateQueue <-chan updateHandler) {
 	c.wg.Add(1)
