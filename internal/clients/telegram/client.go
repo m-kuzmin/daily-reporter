@@ -19,6 +19,12 @@ const (
 	getUpdatesLongPollingTimeout = "5"  // The server will wait this many sec before telling us there's nothing to process
 )
 
+// Starter is a muiltithreaded client where the number of threads is passed into Start()
+type Starter interface {
+	Start(threads uint) // `threads` is the number of threads the client is allowed to use
+	Stop()
+}
+
 /*
 A Client to interact with the telegram API. Start the client and then call Stop to stop it gracefully.
 The client may take some time to shutdown if it has work to do.
