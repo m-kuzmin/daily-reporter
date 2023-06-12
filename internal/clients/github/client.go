@@ -70,5 +70,5 @@ query ViewerProjectsV2($first: Int! = 10, $after: String) {
 type ProjectV2 struct {
 	Cursor string
 	Title  string
-	Id     string
+	ID     string
 }

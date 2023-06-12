@@ -52,9 +52,8 @@ func NewClient(host, token string) Client {
 }
 
 /*
-Starts the client in the background. It will fetch updates via `Client.getUpdates()`
-and sends them to a queue. Queue items are recieved by one of `Client.processUpdates()`
-which are going to process all updates in parallel
+Starts the client in the background. It will fetch updates via `Client.getUpdates()` and sends them to a queue. Queue
+items are recieved by one of `Client.processUpdates()` which are going to process all updates in parallel
 
 `goroutines` specifies how many threads to use in parallel.
 
@@ -265,7 +264,7 @@ func doApiRequest[T any](c *Client, req *http.Request, logID string) (_ *T, err 
 			ErrorCode   int    `json:"error_code,omitempty"`
 			Description string `json:"description,omitempty"`
 			Parameters  struct {
-				MigrateToChatId int64         `json:"migrate_to_chat_id,omitempty"`
+				MigrateToChatID int64         `json:"migrate_to_chat_id,omitempty"`
 				RertyAfter      time.Duration `json:"retry_after,omitempty"`
 			} `json:"parameters,omitempty"`
 			Result T `json:"result"`
@@ -285,9 +284,9 @@ func doApiRequest[T any](c *Client, req *http.Request, logID string) (_ *T, err 
 				time.Sleep(time.Duration(data.Parameters.RertyAfter * time.Second))
 				continue
 			}
-			if data.Parameters.MigrateToChatId != 0 {
+			if data.Parameters.MigrateToChatID != 0 {
 				log.Fatalf("API asked to migrate to chat ID %d, which is an unsupported operation",
-					data.Parameters.MigrateToChatId)
+					data.Parameters.MigrateToChatID)
 			}
 			continue
 		}

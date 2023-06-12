@@ -100,9 +100,9 @@ func (u *update) processTelegramUpdate(state ConversationStateHandler) (
 func (u *update) stateHandle() (string, error) {
 	switch {
 	case u.Message != nil && u.Message.Chat.Type == chatTypePrivate && u.Message.From != nil:
-		return "private:" + strconv.FormatInt(u.Message.From.Id, 10), nil
+		return "private:" + strconv.FormatInt(u.Message.From.ID, 10), nil
 	case u.Message != nil && u.Message.Chat.Type == chatTypeGroup && u.Message.From != nil:
-		return strconv.FormatInt(u.Message.Chat.ID, 10) + ":" + strconv.FormatInt(u.Message.From.Id, 10), nil
+		return strconv.FormatInt(u.Message.Chat.ID, 10) + ":" + strconv.FormatInt(u.Message.From.ID, 10), nil
 	default:
 		return "", fmt.Errorf("%s", fmt.Sprintf("Unknown update, cannot generate handle for it: %v", u))
 	}
