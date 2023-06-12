@@ -66,7 +66,7 @@ func (m *message) sameChatHtml(text string) sendMessage {
 type (
 	callbackQuery struct{}
 	user          struct {
-		Id int64 `json:"id"`
+		ID int64 `json:"id"`
 	}
 )
 type chat struct {
