@@ -33,10 +33,6 @@ func (*rootConversationState) String() string {
 }
 
 func (s *rootConversationState) telegramMessage(message message) (ConversationStateHandler, []telegramBotActor) {
-	if message.Text != nil {
-		log.Printf("Got a message %q", *message.Text)
-	}
-
 	if message.Chat.Type == chatTypePrivate {
 		return s.privateMessage(message)
 	} else {
@@ -52,12 +48,15 @@ func (s *rootConversationState) publicChatMessage(message message) (Conversation
 	}
 	switch strings.ToLower(strings.TrimSpace(*message.Text)) {
 	case "/start":
+		log.Printf("User %d used /start in %s", message.From.Id, message.Chat.Type)
 		return s, []telegramBotActor{message.sameChatPlain("Hi! " + whoAmI + `
 
 You can use /help to get a list of commands. To get started send me /addApiKey in private messages.`)}
 	case "/help":
+		log.Printf("User %d used /help in %s", message.From.Id, message.Chat.Type)
 		return s, []telegramBotActor{message.sameChatPlain(s.helpText())}
 	case "/addapikey", "/listprojects":
+		log.Printf("User %d used /addApiKey in %s", message.From.Id, message.Chat.Type)
 		return s, []telegramBotActor{message.sameChatPlain(`This command only works in private (direct) messages for your privacy and security.`)}
 	default:
 		return s, []telegramBotActor{}
@@ -69,14 +68,16 @@ func (s *rootConversationState) privateMessage(message message) (ConversationSta
 		return s, []telegramBotActor{}
 	}
 	switch strings.ToLower(strings.TrimSpace(*message.Text)) {
-
 	case "/start":
+		log.Printf("User %d used /start in private messages", message.From.Id)
 		return s, []telegramBotActor{message.sameChatPlain("Hi! " + whoAmI + `
 
 You can use /help to get a list of commands. The one you will need right now is /addApiKey`)}
 	case "/help":
+		log.Printf("User %d used /help in private messages", message.From.Id)
 		return s, []telegramBotActor{message.sameChatPlain(s.helpText())}
 	case "/addapikey":
+		log.Printf("User %d used /addApiKey in private messages", message.From.Id)
 		return &addApiKeyConversationState{}, []telegramBotActor{message.sameChatMarkdownV2(
 `Lets set your GitHub API key\. I can only hold one at a time and I will use it to get information about your projects\.
 
@@ -119,14 +120,18 @@ You should never try to add tokens in a public chat.`)}
 	}
 	switch strings.TrimSpace(*message.Text) {
 	case "/cancel":
+		log.Printf("User %d canceled /addApiKey in %s", message.From.Id, message.Chat.Type)
 		return &rootConversationState{}, []telegramBotActor{message.sameChatPlain("Canceled.")}
 	default:
 		client := github.NewClient(*message.Text)
+
 		login, err := client.Login()
 		if err != nil {
 			log.Println("Error getting user's login by token:", err)
 			return s, []telegramBotActor{message.sameChatPlain("Could not use your token, try again or /cancel")}
 		}
+
+		log.Printf("User %d successfully added their GitHub token", message.From.Id)
 		return &rootConversationState{}, []telegramBotActor{message.sameChatHtml(
 			fmt.Sprintf(`Nice to meet you, <a href="https://github.com/%s">%s</a>!`, login, login))}
 
