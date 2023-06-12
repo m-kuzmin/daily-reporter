@@ -8,12 +8,14 @@ import (
 	graphql "github.com/m-kuzmin/daily-reporter/api/github"
 )
 
+const githubGraphQLEndpoit = "https://api.github.com/graphql"
+
 type Client struct {
 	client genqlient.Client
 }
 
 func NewClient(token string) Client {
-	return Client{client: genqlient.NewClient("https://api.github.com/graphql",
+	return Client{client: genqlient.NewClient(githubGraphQLEndpoit,
 		&http.Client{
 			Transport: &authedTransport{token: token, wrapped: http.DefaultTransport}})}
 }
