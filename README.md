@@ -33,7 +33,7 @@ Label *Todo* is used for items that are not yet on the schedule and in the begin
 # Starting the bot locally
 
 ```
-make run
+make build && ./build/daily-reporter -tg-token TELEGRAM_TOKEN
 # or
 make docker
 ```
