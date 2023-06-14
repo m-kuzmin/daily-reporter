@@ -15,14 +15,18 @@ type sendMessage struct {
 	ParseMode string
 }
 
-func (m sendMessage) telegramBotAction() (endpoint string, params url.Values) {
-	endpoint = "sendMessage"
-	params = url.Values{}
+func (m sendMessage) telegramBotAction() (string, url.Values) {
+	var (
+		endpoint = "sendMessage"
+		params   = url.Values{}
+	)
+
 	params.Add("chat_id", m.ChatID)
 	params.Add("text", m.Text)
+
 	if m.ParseMode != "" {
 		params.Add("parse_mode", m.ParseMode)
 	}
 
-	return
+	return endpoint, params
 }

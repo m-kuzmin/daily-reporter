@@ -6,7 +6,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type Config struct {
+type Config struct { //nolint:musttag // TOML will figure out the tags itself
 	Telegram struct {
 		Token   string
 		Threads uint
@@ -19,5 +19,6 @@ func mustNewConfig() Config {
 	if _, err := toml.DecodeFile("config.toml", &conf); err != nil {
 		log.Fatal(err)
 	}
+
 	return conf
 }

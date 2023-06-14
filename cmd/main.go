@@ -13,11 +13,12 @@ func main() {
 	conf := mustNewConfig()
 
 	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token)
+
 	client.Start(conf.Telegram.Threads)
 	defer client.Stop()
 
 	waitSigterm()
-	log.Println("Recieved ^C (SIGTERM), stopping the bot (Graceful shutdown).")
+	log.Println("Received ^C (SIGTERM), stopping the bot (Graceful shutdown).")
 
 	go func() {
 		waitSigterm()

@@ -1,27 +1,31 @@
 package telegram
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 )
 
 /*
-telegramUpdateProcessor provides a uniform interface for processing telegram updates. An implementation struct only
-holds fields about itself such as update id, message text, etc. Conversation state is stored outside the update and an
-implementation can mutate it.
-
-Caller of processTelegramUpdate doesn't know anything about what the update is. It doesn't matter if its a message, poll
-option, etc. The update knows what it is and will do the things it needs to.
+telegramUpdateProcessor provides a uniform interface for processing telegram updates. The job of the implementor is to
+call a correct method on `state` and return its result. This allows the caller to not know what the udate is, only know
+that it knows how to apply itself to `state`.
 */
-type UpdateProcessor interface {
+type updateProcessor interface {
 	processTelegramUpdate(state ConversationStateHandler) (ConversationStateHandler, []telegramBotActor)
+
+	// Returns an ID that can be looked up in state storage. That state is then passed into `processTelegramUpdate`.
+	//
+	// Returns error if the update cannot be looked up in state storage
 	stateHandle() (string, error)
 }
 
+type stateHandleError struct{}
+
+func (stateHandleError) Error() string { return "unknown update, can't generate handle for it" }
+
 /*
 Represents a JSON response from the telegram API. Since an update could be many things like a message, button, poll
-option, etc the update struct implements `UpdateProcessor` which performs the actions neccessary to respond to an
+option, etc the update struct implements `UpdateProcessor` which performs the actions necessary to respond to an
 update.
 */
 type update struct {
@@ -55,7 +59,7 @@ func (m *message) sameChatMarkdownV2(text string) sendMessage {
 	}
 }
 
-func (m *message) sameChatHtml(text string) sendMessage {
+func (m *message) sameChatHTML(text string) sendMessage {
 	return sendMessage{
 		ChatID:    strconv.FormatInt(m.Chat.ID, 10),
 		Text:      text,
@@ -69,6 +73,7 @@ type (
 		ID int64 `json:"id"`
 	}
 )
+
 type chat struct {
 	ID   int64  `json:"id"`
 	Type string `json:"type"`
@@ -93,6 +98,7 @@ func (u *update) processTelegramUpdate(state ConversationStateHandler) (
 		return state.telegramMessage(*u.Message)
 	default:
 		log.Println("Not handling update", *u)
+
 		return state, []telegramBotActor{}
 	}
 }
@@ -104,6 +110,6 @@ func (u *update) stateHandle() (string, error) {
 	case u.Message != nil && u.Message.Chat.Type == chatTypeGroup && u.Message.From != nil:
 		return strconv.FormatInt(u.Message.Chat.ID, 10) + ":" + strconv.FormatInt(u.Message.From.ID, 10), nil
 	default:
-		return "", fmt.Errorf("%s", fmt.Sprintf("Unknown update, cannot generate handle for it: %v", u))
+		return "", stateHandleError{}
 	}
 }

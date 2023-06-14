@@ -5,12 +5,15 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY config.toml Makefile ./
+COPY api api
 COPY cmd cmd
 COPY internal internal
-COPY api api
 
+COPY Makefile ./
 RUN make build
+
+# // TODO: Use multistage builds so that final image is lighter
 COPY build/daily-reporter .
+COPY config.toml ./
 
 ENTRYPOINT [ "/app/daily-reporter" ]

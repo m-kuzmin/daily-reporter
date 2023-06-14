@@ -8,6 +8,8 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 )
 
+// TODO: Move message content to a separate file that is loaded on bot startup
+
 /*
 Implementors of this interface are conversation states that can handle different types of updates through methods. A
 method should return an updated state of the convesation (if its the same then return self) and a set of actions to
@@ -35,9 +37,9 @@ func (*rootConversationState) String() string {
 func (s *rootConversationState) telegramMessage(message message) (ConversationStateHandler, []telegramBotActor) {
 	if message.Chat.Type == chatTypePrivate {
 		return s.privateMessage(message)
-	} else {
-		return s.publicChatMessage(message)
 	}
+
+	return s.publicChatMessage(message)
 }
 
 const whoAmI = "I am a bot that can generate a report from your todo list on Github Projects."
@@ -46,18 +48,23 @@ func (s *rootConversationState) publicChatMessage(message message) (Conversation
 	if message.Text == nil {
 		return s, []telegramBotActor{}
 	}
+
 	switch strings.ToLower(strings.TrimSpace(*message.Text)) {
 	case "/start":
 		log.Printf("User %d used /start in %s", message.From.ID, message.Chat.Type)
+
 		return s, []telegramBotActor{message.sameChatPlain("Hi! " + whoAmI + `
 
 You can use /help to get a list of commands. To get started send me /addApiKey in private messages.`)}
 	case "/help":
 		log.Printf("User %d used /help in %s", message.From.ID, message.Chat.Type)
+
 		return s, []telegramBotActor{message.sameChatPlain(s.helpText())}
 	case "/addapikey", "/listprojects":
 		log.Printf("User %d used /addApiKey in %s", message.From.ID, message.Chat.Type)
-		return s, []telegramBotActor{message.sameChatPlain(`This command only works in private (direct) messages for your privacy and security.`)}
+
+		return s, []telegramBotActor{message.sameChatPlain(
+			`This command only works in private (direct) messages for your privacy and security.`)}
 	default:
 		return s, []telegramBotActor{}
 	}
@@ -67,19 +74,24 @@ func (s *rootConversationState) privateMessage(message message) (ConversationSta
 	if message.Text == nil {
 		return s, []telegramBotActor{}
 	}
+
 	switch strings.ToLower(strings.TrimSpace(*message.Text)) {
 	case "/start":
 		log.Printf("User %d used /start in private messages", message.From.ID)
+
 		return s, []telegramBotActor{message.sameChatPlain("Hi! " + whoAmI + `
 
 You can use /help to get a list of commands. The one you will need right now is /addApiKey`)}
 	case "/help":
 		log.Printf("User %d used /help in private messages", message.From.ID)
+
 		return s, []telegramBotActor{message.sameChatPlain(s.helpText())}
 	case "/addapikey":
 		log.Printf("User %d used /addApiKey in private messages", message.From.ID)
-		return &addApiKeyConversationState{}, []telegramBotActor{message.sameChatMarkdownV2(
-`Lets set your GitHub API key\. I can only hold one at a time and I will use it to get information about your projects\.
+
+		//nolint:lll
+		return &addAPIKeyConversationState{}, []telegramBotActor{message.sameChatMarkdownV2(
+			`Lets set your GitHub API key\. I can only hold one at a time and I will use it to get information about your projects\.
 
 You can create a key on [this page](https://github.com/settings/tokens/new)\. *Make sure*:
 
@@ -102,14 +114,15 @@ Here are the commands I have:
 • /addApiKey: Set your GitHub API key (Private messages only)`
 }
 
-type addApiKeyConversationState struct{}
+type addAPIKeyConversationState struct{}
 
-func (s *addApiKeyConversationState) String() string {
+func (s *addAPIKeyConversationState) String() string {
 	return "addApiKeyState"
 }
 
-func (s *addApiKeyConversationState) telegramMessage(message message) (ConversationStateHandler, []telegramBotActor) {
+func (s *addAPIKeyConversationState) telegramMessage(message message) (ConversationStateHandler, []telegramBotActor) {
 	if message.Chat.Type != chatTypePrivate {
+		//nolint:lll
 		return &rootConversationState{}, []telegramBotActor{message.sameChatMarkdownV2(
 			`If what you've sent me just now is a GitHub API token, *immediately* [revoke it](https://github.com/settings/tokens)\!
 You should never try to add tokens in a public chat.`)}
@@ -118,9 +131,11 @@ You should never try to add tokens in a public chat.`)}
 	if message.Text == nil {
 		return s, []telegramBotActor{}
 	}
+
 	switch strings.TrimSpace(*message.Text) {
 	case "/cancel":
 		log.Printf("User %d canceled /addApiKey in %s", message.From.ID, message.Chat.Type)
+
 		return &rootConversationState{}, []telegramBotActor{message.sameChatPlain("Canceled.")}
 	default:
 		client := github.NewClient(*message.Text)
@@ -128,12 +143,13 @@ You should never try to add tokens in a public chat.`)}
 		login, err := client.Login()
 		if err != nil {
 			log.Println("Error getting user's login by token:", err)
+
 			return s, []telegramBotActor{message.sameChatPlain("Could not use your token, try again or /cancel")}
 		}
 
 		log.Printf("User %d successfully added their GitHub token", message.From.ID)
-		return &rootConversationState{}, []telegramBotActor{message.sameChatHtml(
-			fmt.Sprintf(`Nice to meet you, <a href="https://github.com/%s">%s</a>!`, login, login))}
 
+		return &rootConversationState{}, []telegramBotActor{message.sameChatHTML(
+			fmt.Sprintf(`Nice to meet you, <a href="https://github.com/%s">%s</a>!`, login, login))}
 	}
 }
