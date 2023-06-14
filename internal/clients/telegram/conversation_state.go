@@ -42,7 +42,7 @@ func (s *rootConversationState) telegramMessage(message message) (ConversationSt
 	return s.publicChatMessage(message)
 }
 
-const whoAmI = "I am a bot that can generate a report from your todo list on Github Projects."
+const botDescription = "I am a bot that can generate a report from your todo list on Github Projects."
 
 func (s *rootConversationState) publicChatMessage(message message) (ConversationStateHandler, []telegramBotActor) {
 	if message.Text == nil {
@@ -53,7 +53,7 @@ func (s *rootConversationState) publicChatMessage(message message) (Conversation
 	case "/start":
 		log.Printf("User %d used /start in %s", message.From.ID, message.Chat.Type)
 
-		return s, []telegramBotActor{message.sameChatPlain("Hi! " + whoAmI + `
+		return s, []telegramBotActor{message.sameChatPlain("Hi! " + botDescription + `
 
 You can use /help to get a list of commands. To get started send me /addApiKey in private messages.`)}
 	case "/help":
@@ -79,7 +79,7 @@ func (s *rootConversationState) privateMessage(message message) (ConversationSta
 	case "/start":
 		log.Printf("User %d used /start in private messages", message.From.ID)
 
-		return s, []telegramBotActor{message.sameChatPlain("Hi! " + whoAmI + `
+		return s, []telegramBotActor{message.sameChatPlain("Hi! " + botDescription + `
 
 You can use /help to get a list of commands. The one you will need right now is /addApiKey`)}
 	case "/help":
@@ -107,7 +107,7 @@ Be aware that once you close the key creation page you can no longer see it\. Yo
 }
 
 func (s *rootConversationState) helpText() string {
-	return whoAmI + `
+	return botDescription + `
 Here are the commands I have:
 
 • /help: you are here!

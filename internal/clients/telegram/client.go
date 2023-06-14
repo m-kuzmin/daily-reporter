@@ -189,8 +189,11 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- updateProcessor
 				continue
 			}
 
-			failures = 0
-			log.Printf("/getUpdates failure count reset to %d", failures)
+			if failures != 0 {
+				log.Printf("/getUpdates failure count reset to 0")
+
+				failures = 0
+			}
 
 			for i, upd := range *result {
 				log.Printf("Sending update #%d to the queue", upd.ID)
