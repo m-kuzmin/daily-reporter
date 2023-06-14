@@ -1,6 +1,7 @@
 # Daily Reporter
 
-This is a telegram bot that can generate a daily report in a telegram chat. This report comes from a GitHub project and is roughly structured like this:
+This is a telegram bot that can generate a daily report in a telegram chat. This report comes from a GitHub project and
+is roughly structured like this:
 
 > **Daily Report [Date]:**
 >
@@ -24,16 +25,20 @@ This is a telegram bot that can generate a daily report in a telegram chat. This
 
 # Workflow using the bot
 
-The bot gets the lists by collecting items by status from a GitHub project. The labels are: 
+The bot gets the lists by collecting items by status from a GitHub project. The labels are:
 - *In Progress* - Tomorrow's todo
 - *Done* - Finished today
 
-Label *Todo* is used for items that are not yet on the schedule and in the beginning of the day you should archive all items in *Done*.
+Label *Todo* is used for items that are not yet on the schedule and in the beginning of the day you should archive all
+items in *Done*.
+
+The bot will also ask questions to fill in the other sections.
 
 # Starting the bot locally
 
+Edit `config.toml` and set `telegram.token` and optionaly set the number of `telegram.threads`.
 ```
-make build && ./build/daily-reporter -tg-token TELEGRAM_TOKEN
+make run
 # or
-make docker
+make docker-run
 ```
