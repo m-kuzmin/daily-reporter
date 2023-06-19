@@ -30,6 +30,7 @@ package template
 import (
 	"fmt"
 	"os"
+	"reflect"
 
 	"gopkg.in/yaml.v3"
 )
@@ -120,7 +121,7 @@ func (g Group) Get(key string) (string, error) {
 	case 0:
 		return "", nil
 	case 1:
-		return fmtParams[0], nil
+		return fmt.Sprintf(fmtParams[0]), nil
 	} // At this point len() is at least 2
 
 	values := make([]any, len(fmtParams)-1)
@@ -129,7 +130,7 @@ func (g Group) Get(key string) (string, error) {
 		values[i] = g.wrapped.Vars[varName]
 	}
 
-	return fmt.Sprintf(fmtParams[0], values[1:]...), nil
+	return fmt.Sprintf(fmtParams[0], values[0:]...), nil
 }
 
 type GroupNotFoundError struct {
@@ -146,4 +147,49 @@ type KeyNotFoundError struct {
 
 func (e KeyNotFoundError) Error() string {
 	return fmt.Sprintf("requested key %q from group %q was not found in template", e.Key, e.Group)
+}
+
+type FieldNotTaggedError struct {
+	Struct string
+	Field  string
+}
+
+func (e FieldNotTaggedError) Error() string {
+	return fmt.Sprintf("field %s in template struct %s is not tagged with \"template\".", e.Field, e.Struct)
+}
+
+type NoTemplateStringError struct {
+	Tag    string
+	Struct string
+}
+
+func (e NoTemplateStringError) Error() string {
+	return fmt.Sprintf("no template string found for tag %q in struct %s", e.Tag, e.Struct)
+}
+
+func (g *Group) Populate(typed interface{}) error {
+	valueOf := reflect.ValueOf(typed).Elem()
+	typeOf := reflect.TypeOf(typed).Elem()
+
+	for i := 0; i < valueOf.NumField(); i++ {
+		fieldValue := valueOf.Field(i)
+		fieldType := typeOf.Field(i)
+
+		tagValue := fieldType.Tag.Get("template")
+		if tagValue == "" {
+			return FieldNotTaggedError{
+				Struct: typeOf.Name(),
+				Field:  fieldType.Name,
+			}
+		}
+
+		value, err := g.Get(tagValue)
+		if err != nil {
+			return err
+		}
+
+		fieldValue.SetString(value)
+	}
+
+	return nil
 }

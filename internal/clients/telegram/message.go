@@ -1,8 +1,12 @@
 package telegram
 
 import (
-	"log"
-	"strconv"
+	"fmt"
+
+	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
+	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/state"
+	upd "github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
+	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 )
 
 /*
@@ -11,7 +15,7 @@ call a correct method on `state` and return its result. This allows the caller t
 that it knows how to apply itself to `state`.
 */
 type updateProcessor interface {
-	processTelegramUpdate(state ConversationStateHandler) (ConversationStateHandler, []telegramBotActor)
+	processTelegramUpdate(state state.Handler) (state.Handler, []response.BotAction)
 
 	// Returns an ID that can be looked up in state storage. That state is then passed into `processTelegramUpdate`.
 	//
@@ -29,42 +33,17 @@ option, etc the update struct implements `UpdateProcessor` which performs the ac
 update.
 */
 type update struct {
-	ID            int64          `json:"update_id"`
-	Message       *message       `json:"message,omitempty"`
-	CallbackQuery *callbackQuery `json:"callback_query,omitempty"`
+	ID            int64                        `json:"update_id"`
+	Message       option.Option[message]       `json:"message,omitempty"`
+	CallbackQuery option.Option[callbackQuery] `json:"callback_query,omitempty"`
 }
 
 type message struct {
-	ID             int      `json:"message_id"`
-	From           *user    `json:"from,omitempty"`
-	Chat           *chat    `json:"chat,omitempty"`
-	ReplyToMessage *message `json:"reply_to_message,omitempty"`
-	Text           *string  `json:"text,omitempty"`
-}
-
-// Generated a sendMessage with ChatID == message.Chat.ID
-func (m *message) sameChatPlain(text string) sendMessage {
-	return sendMessage{
-		ChatID:    strconv.FormatInt(m.Chat.ID, 10),
-		Text:      text,
-		ParseMode: "",
-	}
-}
-
-func (m *message) sameChatMarkdownV2(text string) sendMessage {
-	return sendMessage{
-		ChatID:    strconv.FormatInt(m.Chat.ID, 10),
-		Text:      text,
-		ParseMode: "MarkdownV2",
-	}
-}
-
-func (m *message) sameChatHTML(text string) sendMessage {
-	return sendMessage{
-		ChatID:    strconv.FormatInt(m.Chat.ID, 10),
-		Text:      text,
-		ParseMode: "html",
-	}
+	ID             int                    `json:"message_id"`
+	From           option.Option[user]    `json:"from,omitempty"`
+	Chat           chat                   `json:"chat,omitempty"`
+	ReplyToMessage option.Option[message] `json:"reply_to_message,omitempty"`
+	Text           option.Option[string]  `json:"text,omitempty"`
 }
 
 type (
@@ -79,37 +58,41 @@ type chat struct {
 	Type string `json:"type"`
 }
 
-const (
-	// Used in chat.Type and means that this is bot's direct messages
-	chatTypePrivate = "private"
-	chatTypeGroup   = "group"
-)
-
 // Identifies which type the message is and then calls a method on the state to handle it.
-func (u *update) processTelegramUpdate(state ConversationStateHandler) (
-	ConversationStateHandler, []telegramBotActor,
+func (u *update) processTelegramUpdate(state state.Handler) (
+	state.Handler, []response.BotAction,
 ) {
-	switch {
-	case u.Message != nil:
-		if u.Message.From == nil || u.Message.Chat == nil || u.Message.Text == nil {
-			return state, []telegramBotActor{}
-		}
-
-		return state.telegramMessage(*u.Message)
-	default:
-		log.Println("Not handling update", *u)
-
-		return state, []telegramBotActor{}
+	if option.Some(true) == option.Flatmap(
+		u.Message,
+		func(message message) bool {
+			return message.Chat.Type == string(upd.ChatTypePrivate)
+		}) {
+		return state.PrivateTextMessage(upd.PrivateTextMessage{
+			Text: u.Message.MustUnwrap().Text.MustUnwrap(),
+			Chat: upd.Chat{
+				ID:   upd.ChatID(fmt.Sprint(u.Message.MustUnwrap().Chat.ID)),
+				Type: upd.ChatType(u.Message.MustUnwrap().Chat.Type),
+			},
+		})
 	}
+
+	return state, []response.BotAction{}
 }
 
 func (u *update) stateHandle() (string, error) {
-	switch {
-	case u.Message != nil && u.Message.Chat.Type == chatTypePrivate && u.Message.From != nil:
-		return "private:" + strconv.FormatInt(u.Message.From.ID, 10), nil
-	case u.Message != nil && u.Message.Chat.Type == chatTypeGroup && u.Message.From != nil:
-		return strconv.FormatInt(u.Message.Chat.ID, 10) + ":" + strconv.FormatInt(u.Message.From.ID, 10), nil
-	default:
-		return "", stateHandleError{}
+	if u.Message.IsSome() {
+		message := u.Message.MustUnwrap()
+		if message.From.IsNone() {
+			return "", stateHandleError{}
+		}
+
+		switch message.Chat.Type {
+		case string(upd.ChatTypePrivate):
+			return fmt.Sprintf("private:%d", message.From.MustUnwrap().ID), nil
+		default:
+			return fmt.Sprintf("%d:%d", message.Chat.ID, message.From.MustUnwrap().ID), nil
+		}
 	}
+
+	return "", stateHandleError{}
 }

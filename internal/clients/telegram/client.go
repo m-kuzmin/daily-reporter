@@ -12,6 +12,9 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/state"
+	"github.com/m-kuzmin/daily-reporter/internal/template"
 )
 
 const (
@@ -49,7 +52,8 @@ type Client struct {
 	client             http.Client
 	wg                 sync.WaitGroup     // Used to make sure all processor threads are done
 	stopProcessing     context.CancelFunc // Triggers the shutdown
-	conversationStates map[string]ConversationStateHandler
+	conversationStates map[string]state.Handler
+	template           template.Template
 }
 
 /*
@@ -61,11 +65,12 @@ Creates a new client.
 
 Creating the client is not enough, you have to `Start()` it.
 */
-func NewClient(host, token string) Client {
+func NewClient(host, token string, template template.Template) Client {
 	return Client{
 		host:     host,
 		basePath: "bot" + token,
 		client:   http.Client{},
+		template: template,
 	}
 }
 
@@ -97,7 +102,7 @@ func (c *Client) Start(threads uint) {
 	)
 
 	c.stopProcessing = cancel
-	c.conversationStates = make(map[string]ConversationStateHandler)
+	c.conversationStates = make(map[string]state.Handler)
 
 	go c.getUpdates(ctx, updateCh)
 	go c.stateQueue(updateCh, stateCh)
@@ -109,8 +114,8 @@ func (c *Client) Start(threads uint) {
 
 // updateWithState is used to join an update with conversation state for that update.
 type updateWithState struct {
-	update updateProcessor          // The update itself
-	state  ConversationStateHandler // Conversation state
+	update updateProcessor // The update itself
+	state  state.Handler   // Conversation state
 }
 
 /*
@@ -250,29 +255,52 @@ because /start saved the state last and overwrote what /quiz did.
 
 TODO: If the state for a conversation was given out and not released via releaseState() this should fail or block.
 */
-func (c *Client) takeState(u *updateProcessor) ConversationStateHandler {
+func (c *Client) takeState(u *updateProcessor) state.Handler {
 	handle, err := (*u).stateHandle()
 	if err != nil {
 		log.Printf("Error converting an update to a state handle: %s", err)
 
-		return &rootConversationState{}
+		state := state.Root{}
+
+		err = state.SetTemplate(c.template)
+		if err != nil {
+			log.Printf("Error while settings template for RootState: %s", err)
+		}
+
+		log.Println("Lent state: Root")
+
+		return &state
 	}
 
-	if s, found := c.conversationStates[handle]; found {
-		log.Println("Lent state:", s)
+	if state, found := c.conversationStates[handle]; found {
+		log.Printf("Lent state: %T", state)
 
-		return s
+		err = state.SetTemplate(c.template)
+		if err != nil {
+			log.Printf("Error while settings template for RootState: %s", err)
+		}
+
+		return state
 	}
 
-	return &rootConversationState{}
+	state := state.Root{}
+
+	err = state.SetTemplate(c.template)
+	if err != nil {
+		log.Printf("Error while settings template for RootState: %s", err)
+	}
+
+	log.Println("Lent state: Root")
+
+	return &state
 }
 
-// TODO: Should unlock the lock that prevents takeState() from giving out state for the conversation.
-func (c *Client) releaseState(u *updateProcessor, s ConversationStateHandler) {
+// TODO: Should unlock the lock that  prevents takeState() from giving out state for the conversation.
+func (c *Client) releaseState(u *updateProcessor, s state.Handler) {
 	if handle, err := (*u).stateHandle(); err != nil {
 		log.Printf("Error converting an update to a state handle: %s", err)
 	} else {
-		log.Println("Released state:", s)
+		log.Printf("Released state: %T", s)
 		c.conversationStates[handle] = s
 	}
 }
@@ -289,7 +317,7 @@ func (c *Client) processUpdates(updateWithStateCh <-chan updateWithState) {
 	for job := range updateWithStateCh {
 		state, actions := job.update.processTelegramUpdate(job.state)
 		for _, action := range actions {
-			endpoint, query := action.telegramBotAction()
+			endpoint, query := action.URLEncode()
 
 			req := c.mustNewGetRequest(context.Background(), endpoint, query, nil) // Use context from Client
 

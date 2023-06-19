@@ -7,12 +7,18 @@ import (
 	"syscall"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram"
+	"github.com/m-kuzmin/daily-reporter/internal/template"
 )
 
 func main() {
 	conf := mustNewConfig()
 
-	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token)
+	templ, err := template.LoadYAMLTemplate(conf.Telegram.Template)
+	if err != nil {
+		log.Fatalf("while loading yaml template from %s: %s", conf.Telegram.Template, err)
+	}
+
+	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token, templ)
 
 	client.Start(conf.Telegram.Threads)
 	defer client.Stop()
