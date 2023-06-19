@@ -335,7 +335,7 @@ Performs the Telegram API request, does error handling, wraps errors and then re
 - Too many failures to perform request (`doApiRequestRetries`)
 */
 func doAPIRequest[T any](c *Client, req *http.Request) (*T, error) {
-	var err error
+	var lastErr error
 
 	for i := 0; i < doAPIRequestRetries; i++ {
 		resp, err := c.client.Do(req)
@@ -368,7 +368,7 @@ func doAPIRequest[T any](c *Client, req *http.Request) (*T, error) {
 		}
 
 		if !data.Ok {
-			err = apiError{ErrorCode: data.ErrorCode, Description: data.Description}
+			lastErr = apiError{ErrorCode: data.ErrorCode, Description: data.Description}
 
 			if data.ErrorCode == http.StatusUnauthorized {
 				log.Fatalf("Token is likely invalid: %s", err)
@@ -391,7 +391,7 @@ func doAPIRequest[T any](c *Client, req *http.Request) (*T, error) {
 		return &data.Result, nil
 	}
 
-	return nil, retryError{Retries: doAPIRequestRetries, LastError: err}
+	return nil, retryError{Retries: doAPIRequestRetries, LastError: lastErr}
 }
 
 // apiError from the telegram API.
@@ -414,5 +414,5 @@ type retryError struct {
 }
 
 func (e retryError) Error() string {
-	return fmt.Sprintf("too many telegram API errors, retry limit (%d) exceeded.", e.Retries)
+	return fmt.Sprintf("too many telegram API errors, retry limit (%d) exceeded; last error: %s", e.Retries, e.LastError)
 }
