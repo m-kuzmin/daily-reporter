@@ -20,24 +20,18 @@ func main() {
 
 	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token, templ)
 
-	client.Start(conf.Telegram.Threads)
-	defer client.Stop()
+	fail := client.Start(conf.Telegram.Threads)
 
-	waitSigterm()
-	log.Println("Received ^C (SIGTERM), stopping the bot (Graceful shutdown).")
+	ctrlC := make(chan os.Signal, 1)
+	signal.Notify(ctrlC, os.Interrupt, syscall.SIGTERM)
 
-	go func() {
-		waitSigterm()
-		log.Println("If you ^C again the server will force stop!")
-		waitSigterm()
-		log.Println("Server force-stopped.")
+	select {
+	case err := <-fail:
+		log.Printf("Bot crashed with error: %s", err)
+
 		os.Exit(1)
-	}()
-}
-
-// Doesn't return until Ctrl+C is pressed in the terminal or SIGTERM is received in another way
-func waitSigterm() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	<-c
+	case <-ctrlC:
+		log.Println("Received ^C (SIGTERM), stopping the bot (Graceful shutdown).")
+		client.Stop()
+	}
 }
