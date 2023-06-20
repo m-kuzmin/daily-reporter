@@ -1,27 +1,15 @@
 package update
 
 type PrivateTextMessage struct {
+	ID   MessageID
 	Text string
 	Chat Chat
+	From User
 }
 
 type GroupTextMessage struct {
+	ID   MessageID
 	Text string
 	Chat Chat
+	From User
 }
-
-type Chat struct {
-	ID   ChatID
-	Type ChatType
-}
-
-type ChatID string
-
-type ChatType string
-
-const (
-	ChatTypePrivate    ChatType = "private"
-	ChatTypeGroup      ChatType = "group"
-	ChatTypeSuperGroup ChatType = "supergroup"
-	ChatTypeChannel    ChatType = "channel"
-)

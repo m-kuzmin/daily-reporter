@@ -63,9 +63,7 @@ func TestPercentPercent(t *testing.T) {
 		t.Errorf("percent.string is not %%s, but %s", str)
 	}
 
-	foo := "foo"
-
-	if fmt.Sprintf(str, foo) != foo {
+	if foo := "foo"; fmt.Sprintf(str, foo) != foo {
 		t.Errorf("percent.string is not foo, but %s", str)
 	}
 }

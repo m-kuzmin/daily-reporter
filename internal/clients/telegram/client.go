@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/state"
+	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
 	"github.com/m-kuzmin/daily-reporter/internal/template"
 )
 
@@ -96,7 +97,7 @@ func (c *Client) Start(threads uint) {
 	}
 
 	var (
-		updateCh    = make(chan updateProcessor, threads)
+		updateCh    = make(chan update.Update, threads)
 		stateCh     = make(chan updateWithState)
 		ctx, cancel = context.WithCancel(context.Background())
 	)
@@ -114,8 +115,8 @@ func (c *Client) Start(threads uint) {
 
 // updateWithState is used to join an update with conversation state for that update.
 type updateWithState struct {
-	update updateProcessor // The update itself
-	state  state.Handler   // Conversation state
+	update update.Update // The update itself
+	state  state.Handler // Conversation state
 }
 
 /*
@@ -166,7 +167,7 @@ are valid.
 
 It will also panic when there are too many errors while interacting with the API
 */
-func (c *Client) getUpdates(ctx context.Context, updateCh chan<- updateProcessor) {
+func (c *Client) getUpdates(ctx context.Context, updateCh chan<- update.Update) {
 	c.wg.Add(1)
 	defer c.wg.Done()
 	defer close(updateCh)
@@ -186,7 +187,7 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- updateProcessor
 		default:
 			req := c.mustNewGetRequest(ctx, "getUpdates", query, nil)
 
-			result, err := doAPIRequest[[]update](c, req)
+			result, err := doAPIRequest[[]update.Update](c, req)
 			if err != nil {
 				failures++
 				log.Printf("/getUpdates failure #%d: %s\n", failures, err)
@@ -202,13 +203,13 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- updateProcessor
 
 			for i, upd := range *result {
 				log.Printf("Sending update #%d to the queue", upd.ID)
-				updateCh <- &(*result)[i]
+				updateCh <- (*result)[i]
 			}
 
 			// Prevents new updates from being the same thing
 			if len(*result) >= 1 {
 				lastUpdate := (*result)[len(*result)-1]
-				query.Set("offset", strconv.FormatInt(lastUpdate.ID+1, 10))
+				query.Set("offset", strconv.FormatInt(int64(lastUpdate.ID)+1, 10))
 			}
 		}
 	}
@@ -226,7 +227,7 @@ However it is not as simple as that. After an update is processed it could chang
 of the conversation. If two updates try to use and change the same state they could create
 weird bugs. Refer to /docs/telegram-client/README.md for details.
 */
-func (c *Client) stateQueue(updateCh chan updateProcessor, stateCh chan<- updateWithState) {
+func (c *Client) stateQueue(updateCh chan update.Update, stateCh chan<- updateWithState) {
 	c.wg.Add(1)
 	defer c.wg.Done()
 	defer close(stateCh)
@@ -236,7 +237,7 @@ func (c *Client) stateQueue(updateCh chan updateProcessor, stateCh chan<- update
 		upd := upd // creates a copy
 		stateCh <- updateWithState{
 			update: upd,
-			state:  c.takeState(&upd),
+			state:  c.takeState(upd),
 		}
 	}
 }
@@ -255,50 +256,36 @@ because /start saved the state last and overwrote what /quiz did.
 
 TODO: If the state for a conversation was given out and not released via releaseState() this should fail or block.
 */
-func (c *Client) takeState(u *updateProcessor) state.Handler {
-	handle, err := (*u).stateHandle()
-	if err != nil {
-		log.Printf("Error converting an update to a state handle: %s", err)
+func (c *Client) takeState(u update.Update) state.Handler {
+	handle, isSome := u.StateID().Unwrap()
+	if isSome {
+		if state, found := c.conversationStates[handle]; found {
+			err := state.SetTemplate(c.template)
+			if err != nil {
+				log.Printf("While fetching state from storage for handle %q: %s", handle, err)
+			} else {
+				log.Printf("Lent state %T", state)
 
-		state := state.Root{}
-
-		err = state.SetTemplate(c.template)
-		if err != nil {
-			log.Printf("Error while settings template for RootState: %s", err)
+				return state
+			}
 		}
-
-		log.Println("Lent state: Root")
-
-		return &state
 	}
 
-	if state, found := c.conversationStates[handle]; found {
-		log.Printf("Lent state: %T", state)
+	state := &state.Root{}
 
-		err = state.SetTemplate(c.template)
-		if err != nil {
-			log.Printf("Error while settings template for RootState: %s", err)
-		}
-
-		return state
+	if err := state.SetTemplate(c.template); err != nil {
+		log.Fatalf("While fetching state from storage for the default state: %s", err)
 	}
 
-	state := state.Root{}
+	log.Printf("Lent state %T", state)
 
-	err = state.SetTemplate(c.template)
-	if err != nil {
-		log.Printf("Error while settings template for RootState: %s", err)
-	}
-
-	log.Println("Lent state: Root")
-
-	return &state
+	return state
 }
 
 // TODO: Should unlock the lock that  prevents takeState() from giving out state for the conversation.
-func (c *Client) releaseState(u *updateProcessor, s state.Handler) {
-	if handle, err := (*u).stateHandle(); err != nil {
-		log.Printf("Error converting an update to a state handle: %s", err)
+func (c *Client) releaseState(u update.Update, s state.Handler) {
+	if handle, isSome := u.StateID().Unwrap(); !isSome {
+		log.Printf("No state handle for an update %#v", u)
 	} else {
 		log.Printf("Released state: %T", s)
 		c.conversationStates[handle] = s
@@ -315,7 +302,7 @@ func (c *Client) processUpdates(updateWithStateCh <-chan updateWithState) {
 	defer c.wg.Done()
 
 	for job := range updateWithStateCh {
-		state, actions := job.update.processTelegramUpdate(job.state)
+		state, actions := state.Handle(job.update, job.state)
 		for _, action := range actions {
 			endpoint, query := action.URLEncode()
 
@@ -328,7 +315,7 @@ func (c *Client) processUpdates(updateWithStateCh <-chan updateWithState) {
 			}
 		}
 
-		c.releaseState(&job.update, state)
+		c.releaseState(job.update, state)
 	}
 }
 

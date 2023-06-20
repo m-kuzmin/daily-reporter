@@ -24,25 +24,31 @@ type rootResponses struct {
 func (s *Root) PrivateTextMessage(message update.PrivateTextMessage) (Handler, []response.BotAction) {
 	switch strings.ToLower(strings.TrimSpace(message.Text)) {
 	case "/start":
-		return s, []response.BotAction{response.SendMessageBuilder(message.Chat.ID, s.responses.Start)}
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.Start)}
 	case "/help":
-		return s, []response.BotAction{response.SendMessageBuilder(message.Chat.ID, s.responses.Help)}
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.Help)}
 	case "/addapikey":
-		return &AddAPIKey{}, []response.BotAction{response.SendMessageBuilder(message.Chat.ID,
-			s.responses.AddAPIKey).ParseModeHTML()}
+		return &AddAPIKey{}, []response.BotAction{response.NewSendMessage(
+			response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.AddAPIKey)}
 	default:
-		return s, []response.BotAction{response.SendMessageBuilder(message.Chat.ID, s.responses.UnknownMessage)}
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.UnknownMessage)}
 	}
 }
 
 func (s *Root) GroupTextMessage(message update.GroupTextMessage) (Handler, []response.BotAction) {
 	switch strings.ToLower(strings.TrimSpace(message.Text)) {
 	case "/start":
-		return s, []response.BotAction{response.SendMessageBuilder(message.Chat.ID, s.responses.Start)}
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.Start)}
 	case "/help":
-		return s, []response.BotAction{response.SendMessageBuilder(message.Chat.ID, s.responses.Help)}
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.Help)}
 	case "/addapikey":
-		return s, []response.BotAction{response.SendMessageBuilder(message.Chat.ID, s.responses.PrivateCommandUsed)}
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.PrivateCommandUsed)}
 	default:
 		return s, response.Noop()
 	}
