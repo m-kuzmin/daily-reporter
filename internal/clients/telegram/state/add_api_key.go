@@ -13,7 +13,7 @@ import (
 
 type AddAPIKey struct {
 	responses addAPIKeyResponses
-	prevState Root
+	prevState Root // Keeps the user's settings that arent managed by this state
 }
 
 type addAPIKeyResponses struct {
