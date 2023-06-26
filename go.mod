@@ -4,6 +4,8 @@ go 1.20
 
 require github.com/BurntSushi/toml v1.3.0
 
+require gopkg.in/yaml.v3 v3.0.1 // indirect
+
 require (
 	github.com/Khan/genqlient v0.6.0 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect

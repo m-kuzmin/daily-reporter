@@ -7,31 +7,31 @@ import (
 	"syscall"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram"
+	"github.com/m-kuzmin/daily-reporter/internal/template"
 )
 
 func main() {
 	conf := mustNewConfig()
 
-	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token)
+	templ, err := template.LoadYAMLTemplate(conf.Telegram.Template)
+	if err != nil {
+		log.Fatalf("while loading yaml template from %s: %s", conf.Telegram.Template, err)
+	}
 
-	client.Start(conf.Telegram.Threads)
-	defer client.Stop()
+	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token, templ)
 
-	waitSigterm()
-	log.Println("Received ^C (SIGTERM), stopping the bot (Graceful shutdown).")
+	fail := client.Start(conf.Telegram.Threads)
 
-	go func() {
-		waitSigterm()
-		log.Println("If you ^C again the server will force stop!")
-		waitSigterm()
-		log.Println("Server force-stopped.")
+	ctrlC := make(chan os.Signal, 1)
+	signal.Notify(ctrlC, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-fail:
+		log.Printf("Bot crashed with error: %s", err)
+
 		os.Exit(1)
-	}()
-}
-
-// Doesn't return until Ctrl+C is pressed in the terminal or SIGTERM is received in another way
-func waitSigterm() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	<-c
+	case <-ctrlC:
+		log.Println("Received ^C (SIGTERM), stopping the bot (Graceful shutdown).")
+		client.Stop()
+	}
 }
