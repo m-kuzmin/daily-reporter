@@ -18,7 +18,15 @@ templates:
         Here are the commands I have:
 
         • /help: you are here!
-        • /addApiKey: Set your GitHub API key (Private messages only)
+        <b>Private messages:</b>
+        • /addApiKey: Set/delete your GitHub API key
+        • /listProjects: List your projects (if the API key is set)
+
+        In general all multistep commands have /none to delete/unset/skip assignment and /cancel to exit without changes.
+        Here's an example:
+        • /addApiKey → /cancel — Has no effect
+        • /addApiKey → /none — Deletes the key
+
       - botDescription
 
     unknownMessage: ["Sorry, I don't understand. Try /help maybe?"]
@@ -31,16 +39,15 @@ templates:
 
     addApiKey:
       - |
-        Lets set your GitHub API key. I can only hold one at a time and I will use it to get information about your projects.
-
         You can create a key on <a href="%s">this page</a>. <b>Make sure</b>:
-
         • <b>You are the owner</b> of the account that you are adding the key for.
         • Only you and me (this bot) know the key because <b>its like a password</b>.
-        • The key's permissions are <i>read:project</i> and <b>that is it</b>.
+        • The key's permissions are <b>read:project</b> and <b>that is it</b>.
+        <i>Be aware that once you close the key creation page you can no longer see it.</i>
 
         Once you have generated the key, send it here as a message.
-        Be aware that once you close the key creation page you can no longer see it. You yourself dont need to keep any copies, but if you fail to paste it in you'll have to delete the old one and generate a new one.
+        /cancel quits this menu
+        /none deletes the currently saved key
       - githubTokenSettingsPage
 
     listProjectsWithoutApiKey: ["You have not added a GitHub API key, so I can't see your projects. Please use /addApiKey"]
@@ -57,4 +64,6 @@ templates:
     cancel: ["Canceled."]
 
     success: ['Nice to meet you, <a href="https://github.com/%%s">%%s</a>!']
+
+    deleted: ["Key deleted."]
 ...

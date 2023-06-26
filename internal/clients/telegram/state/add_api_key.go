@@ -13,20 +13,28 @@ import (
 
 type AddAPIKey struct {
 	responses addAPIKeyResponses
+	prevState Root
 }
 
 type addAPIKeyResponses struct {
-	KeySentInPublicChat string `template:"keySentInPublicChat"`
+	Cancel  string `template:"cancel"`
+	Success string `template:"success"`
+	Deleted string `template:"deleted"`
+
 	BadAPIKey           string `template:"badApiKey"`
-	Cancel              string `template:"cancel"`
-	Success             string `template:"success"`
+	KeySentInPublicChat string `template:"keySentInPublicChat"`
 }
 
 func (s *AddAPIKey) PrivateTextMessage(message update.PrivateTextMessage) (Handler, []response.BotAction) {
 	switch strings.ToLower(strings.TrimSpace(message.Text)) {
 	case "/cancel":
-		return &Root{}, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+		return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 			s.responses.Cancel)}
+	case "/none":
+		s.prevState.userData.GithubAPIKey = option.None[string]()
+
+		return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.Deleted)}
 	default:
 		client := github.NewClient(message.Text)
 
@@ -36,14 +44,15 @@ func (s *AddAPIKey) PrivateTextMessage(message update.PrivateTextMessage) (Handl
 				s.responses.BadAPIKey)}
 		}
 
-		return &Root{userData: rootUserData{GithubAPIKey: option.Some(message.Text)}},
-			[]response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-				fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview()}
+		s.prevState.userData.GithubAPIKey = option.Some(message.Text)
+
+		return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview()}
 	}
 }
 
 func (s *AddAPIKey) GroupTextMessage(message update.GroupTextMessage) (Handler, []response.BotAction) {
-	return &Root{}, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+	return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 		s.responses.KeySentInPublicChat)}
 }
 

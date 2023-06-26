@@ -49,7 +49,7 @@ func (s *Root) PrivateTextMessage(message update.PrivateTextMessage) (Handler, [
 		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 			s.responses.Help)}
 	case "/addapikey":
-		return &AddAPIKey{}, []response.BotAction{response.NewSendMessage(
+		return &AddAPIKey{prevState: *s}, []response.BotAction{response.NewSendMessage(
 			response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.AddAPIKey)}
 	case "/listprojects":
 		return s.handleListProjects(message)
