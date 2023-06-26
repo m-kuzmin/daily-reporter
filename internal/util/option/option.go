@@ -46,6 +46,14 @@ func (o Option[T]) Unwrap() (T, bool) {
 	return none, false
 }
 
+func (o Option[T]) UnwrapOr(ifNone T) T {
+	if o.IsSome() {
+		return o.value.(T) //nolint:forcetypeassert // Type T is guaranteed
+	}
+
+	return ifNone
+}
+
 func Flatmap[T, U any](o Option[T], f func(T) U) Option[U] {
 	if v, isSome := o.Unwrap(); isSome {
 		return Some(f(v))

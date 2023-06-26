@@ -7,6 +7,7 @@ import (
 
 	genqlient "github.com/Khan/genqlient/graphql"
 	graphql "github.com/m-kuzmin/daily-reporter/api/github"
+	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/pkg/errors"
 )
 
@@ -55,37 +56,60 @@ query Login {
 	return resp.Viewer.Login, nil
 }
 
-func (c *Client) ListViewerProjects() []ProjectV2 {
+func (c Client) ListViewerProjects(first option.Option[int], after option.Option[ProjectCursor]) ([]ProjectV2, error) {
 	_ = `# @genqlient
-query ViewerProjectsV2($first: Int! = 10, $after: String) {
+query ViewerProjectsV2($first: Int!, $after: String) {
   viewer {
-	projectsV2(first: $first, after: $after) {
+    projectsV2(first: $first, after: $after) {
       edges {
-		cursor
+        cursor
         node {
           id
           title
+          number
+          url
+          creator {
+            login
+            url
+          }
         }
       }
     }
   }
 }`
 
-	const (
-		first = 10
-		after = ""
-	)
-
-	_, err := graphql.ViewerProjectsV2(context.Background(), c.client, first, after)
+	//nolint:gomnd
+	graphql, err := graphql.ViewerProjectsV2(context.Background(), c.client, first.UnwrapOr(10),
+		string(after.UnwrapOr("")))
 	if err != nil {
-		panic("TODO:")
+		return []ProjectV2{}, fmt.Errorf("while requesting user's projects over GitHub GraphQL: %w", err)
 	}
 
-	return make([]ProjectV2, 0)
+	projects := make([]ProjectV2, len(graphql.Viewer.ProjectsV2.Edges))
+
+	for i, project := range graphql.Viewer.ProjectsV2.Edges {
+		projects[i] = ProjectV2{
+			Cursor:       ProjectCursor(project.Cursor),
+			Title:        project.Node.Title,
+			ID:           project.Node.Id,
+			URL:          project.Node.Url,
+			CreatorLogin: project.Node.Creator.GetLogin(),
+			CreatorURL:   project.Node.Creator.GetUrl(),
+			Number:       project.Node.Number,
+		}
+	}
+
+	return projects, nil
 }
 
 type ProjectV2 struct {
-	Cursor string
-	Title  string
-	ID     string
+	Cursor       ProjectCursor
+	Title        string
+	ID           string
+	URL          string
+	CreatorLogin string
+	CreatorURL   string
+	Number       int
 }
+
+type ProjectCursor string

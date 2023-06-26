@@ -8,6 +8,7 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
 	"github.com/m-kuzmin/daily-reporter/internal/template"
+	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 )
 
 type AddAPIKey struct {
@@ -35,8 +36,9 @@ func (s *AddAPIKey) PrivateTextMessage(message update.PrivateTextMessage) (Handl
 				s.responses.BadAPIKey)}
 		}
 
-		return &Root{}, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-			fmt.Sprintf(s.responses.Success, login, login))}
+		return &Root{userData: rootUserData{GithubAPIKey: option.Some(message.Text)}},
+			[]response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+				fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview()}
 	}
 }
 

@@ -18,12 +18,12 @@ func Handle(upd update.Update, state Handler) (Handler, []response.BotAction) {
 		case update.ChatTypePrivate:
 			text, isSome := message.Text.Unwrap()
 			if !isSome {
-				return state, response.Noop()
+				return state, response.Nothing()
 			}
 
 			from, isSome := message.From.Unwrap()
 			if !isSome {
-				return state, response.Noop()
+				return state, response.Nothing()
 			}
 
 			return state.PrivateTextMessage(update.PrivateTextMessage{
@@ -35,12 +35,12 @@ func Handle(upd update.Update, state Handler) (Handler, []response.BotAction) {
 		case update.ChatTypeGroup:
 			text, isSome := message.Text.Unwrap()
 			if !isSome {
-				return state, response.Noop()
+				return state, response.Nothing()
 			}
 
 			from, isSome := message.From.Unwrap()
 			if !isSome {
-				return state, response.Noop()
+				return state, response.Nothing()
 			}
 
 			return state.GroupTextMessage(update.GroupTextMessage{
@@ -50,9 +50,9 @@ func Handle(upd update.Update, state Handler) (Handler, []response.BotAction) {
 				From: from,
 			})
 		case update.ChatTypeChannel, update.ChatTypeSuperGroup:
-			return state, response.Noop()
+			return state, response.Nothing()
 		}
 	}
 
-	return state, response.Noop()
+	return state, response.Nothing()
 }

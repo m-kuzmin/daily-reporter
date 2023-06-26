@@ -4,6 +4,8 @@ package github_graphql
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/Khan/genqlient/graphql"
 )
@@ -95,6 +97,12 @@ type ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNo
 	Id string `json:"id"`
 	// The project's name.
 	Title string `json:"title"`
+	// The project's number.
+	Number int `json:"number"`
+	// The HTTP URL for this project
+	Url string `json:"url"`
+	// The actor who originally created the project.
+	Creator ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor `json:"-"`
 }
 
 // GetId returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2.Id, and is useful for accessing the field via an interface.
@@ -105,6 +113,359 @@ func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2Ed
 // GetTitle returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2.Title, and is useful for accessing the field via an interface.
 func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2) GetTitle() string {
 	return v.Title
+}
+
+// GetNumber returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2.Number, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2) GetNumber() int {
+	return v.Number
+}
+
+// GetUrl returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2.Url, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2) GetUrl() string {
+	return v.Url
+}
+
+// GetCreator returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2.Creator, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2) GetCreator() ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor {
+	return v.Creator
+}
+
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2) UnmarshalJSON(b []byte) error {
+
+	if string(b) == "null" {
+		return nil
+	}
+
+	var firstPass struct {
+		*ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2
+		Creator json.RawMessage `json:"creator"`
+		graphql.NoUnmarshalJSON
+	}
+	firstPass.ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2 = v
+
+	err := json.Unmarshal(b, &firstPass)
+	if err != nil {
+		return err
+	}
+
+	{
+		dst := &v.Creator
+		src := firstPass.Creator
+		if len(src) != 0 && string(src) != "null" {
+			err = __unmarshalViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor(
+				src, dst)
+			if err != nil {
+				return fmt.Errorf(
+					"unable to unmarshal ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2.Creator: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+type __premarshalViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2 struct {
+	Id string `json:"id"`
+
+	Title string `json:"title"`
+
+	Number int `json:"number"`
+
+	Url string `json:"url"`
+
+	Creator json.RawMessage `json:"creator"`
+}
+
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2) MarshalJSON() ([]byte, error) {
+	premarshaled, err := v.__premarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(premarshaled)
+}
+
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2) __premarshalJSON() (*__premarshalViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2, error) {
+	var retval __premarshalViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2
+
+	retval.Id = v.Id
+	retval.Title = v.Title
+	retval.Number = v.Number
+	retval.Url = v.Url
+	{
+
+		dst := &retval.Creator
+		src := v.Creator
+		var err error
+		*dst, err = __marshalViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor(
+			&src)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"unable to marshal ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2.Creator: %w", err)
+		}
+	}
+	return &retval, nil
+}
+
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor includes the requested fields of the GraphQL interface Actor.
+//
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor is implemented by the following types:
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser
+// The GraphQL type's documentation follows.
+//
+// Represents an object which can take actions on GitHub. Typically a User or Bot.
+type ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor interface {
+	implementsGraphQLInterfaceViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor()
+	// GetTypename returns the receiver's concrete GraphQL type-name (see interface doc for possible values).
+	GetTypename() string
+	// GetLogin returns the interface-field "login" from its implementation.
+	// The GraphQL interface field's documentation follows.
+	//
+	// The username of the actor.
+	GetLogin() string
+	// GetUrl returns the interface-field "url" from its implementation.
+	// The GraphQL interface field's documentation follows.
+	//
+	// The HTTP URL for this actor.
+	GetUrl() string
+}
+
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot) implementsGraphQLInterfaceViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor() {
+}
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount) implementsGraphQLInterfaceViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor() {
+}
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin) implementsGraphQLInterfaceViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor() {
+}
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization) implementsGraphQLInterfaceViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor() {
+}
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser) implementsGraphQLInterfaceViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor() {
+}
+
+func __unmarshalViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor(b []byte, v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor) error {
+	if string(b) == "null" {
+		return nil
+	}
+
+	var tn struct {
+		TypeName string `json:"__typename"`
+	}
+	err := json.Unmarshal(b, &tn)
+	if err != nil {
+		return err
+	}
+
+	switch tn.TypeName {
+	case "Bot":
+		*v = new(ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot)
+		return json.Unmarshal(b, *v)
+	case "EnterpriseUserAccount":
+		*v = new(ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount)
+		return json.Unmarshal(b, *v)
+	case "Mannequin":
+		*v = new(ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin)
+		return json.Unmarshal(b, *v)
+	case "Organization":
+		*v = new(ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization)
+		return json.Unmarshal(b, *v)
+	case "User":
+		*v = new(ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser)
+		return json.Unmarshal(b, *v)
+	case "":
+		return fmt.Errorf(
+			"response was missing Actor.__typename")
+	default:
+		return fmt.Errorf(
+			`unexpected concrete type for ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor: "%v"`, tn.TypeName)
+	}
+}
+
+func __marshalViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor(v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor) ([]byte, error) {
+
+	var typename string
+	switch v := (*v).(type) {
+	case *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot:
+		typename = "Bot"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot
+		}{typename, v}
+		return json.Marshal(result)
+	case *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount:
+		typename = "EnterpriseUserAccount"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount
+		}{typename, v}
+		return json.Marshal(result)
+	case *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin:
+		typename = "Mannequin"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin
+		}{typename, v}
+		return json.Marshal(result)
+	case *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization:
+		typename = "Organization"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization
+		}{typename, v}
+		return json.Marshal(result)
+	case *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser:
+		typename = "User"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser
+		}{typename, v}
+		return json.Marshal(result)
+	case nil:
+		return []byte("null"), nil
+	default:
+		return nil, fmt.Errorf(
+			`unexpected concrete type for ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorActor: "%T"`, v)
+	}
+}
+
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot includes the requested fields of the GraphQL type Bot.
+// The GraphQL type's documentation follows.
+//
+// A special type of user which takes actions on behalf of GitHub Apps.
+type ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot struct {
+	Typename string `json:"__typename"`
+	// The username of the actor.
+	Login string `json:"login"`
+	// The HTTP URL for this actor.
+	Url string `json:"url"`
+}
+
+// GetTypename returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot.Typename, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot) GetTypename() string {
+	return v.Typename
+}
+
+// GetLogin returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot.Login, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot) GetLogin() string {
+	return v.Login
+}
+
+// GetUrl returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot.Url, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorBot) GetUrl() string {
+	return v.Url
+}
+
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount includes the requested fields of the GraphQL type EnterpriseUserAccount.
+// The GraphQL type's documentation follows.
+//
+// An account for a user who is an admin of an enterprise or a member of an enterprise through one or more organizations.
+type ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount struct {
+	Typename string `json:"__typename"`
+	// The username of the actor.
+	Login string `json:"login"`
+	// The HTTP URL for this actor.
+	Url string `json:"url"`
+}
+
+// GetTypename returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount.Typename, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount) GetTypename() string {
+	return v.Typename
+}
+
+// GetLogin returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount.Login, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount) GetLogin() string {
+	return v.Login
+}
+
+// GetUrl returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount.Url, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorEnterpriseUserAccount) GetUrl() string {
+	return v.Url
+}
+
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin includes the requested fields of the GraphQL type Mannequin.
+// The GraphQL type's documentation follows.
+//
+// A placeholder user for attribution of imported data on GitHub.
+type ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin struct {
+	Typename string `json:"__typename"`
+	// The username of the actor.
+	Login string `json:"login"`
+	// The HTTP URL for this actor.
+	Url string `json:"url"`
+}
+
+// GetTypename returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin.Typename, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin) GetTypename() string {
+	return v.Typename
+}
+
+// GetLogin returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin.Login, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin) GetLogin() string {
+	return v.Login
+}
+
+// GetUrl returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin.Url, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorMannequin) GetUrl() string {
+	return v.Url
+}
+
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization includes the requested fields of the GraphQL type Organization.
+// The GraphQL type's documentation follows.
+//
+// An account on GitHub, with one or more owners, that has repositories, members and teams.
+type ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization struct {
+	Typename string `json:"__typename"`
+	// The username of the actor.
+	Login string `json:"login"`
+	// The HTTP URL for this actor.
+	Url string `json:"url"`
+}
+
+// GetTypename returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization.Typename, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization) GetTypename() string {
+	return v.Typename
+}
+
+// GetLogin returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization.Login, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization) GetLogin() string {
+	return v.Login
+}
+
+// GetUrl returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization.Url, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorOrganization) GetUrl() string {
+	return v.Url
+}
+
+// ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser includes the requested fields of the GraphQL type User.
+// The GraphQL type's documentation follows.
+//
+// A user is an individual's account on GitHub that owns repositories and can make new content.
+type ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser struct {
+	Typename string `json:"__typename"`
+	// The username of the actor.
+	Login string `json:"login"`
+	// The HTTP URL for this actor.
+	Url string `json:"url"`
+}
+
+// GetTypename returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser.Typename, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser) GetTypename() string {
+	return v.Typename
+}
+
+// GetLogin returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser.Login, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser) GetLogin() string {
+	return v.Login
+}
+
+// GetUrl returns ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser.Url, and is useful for accessing the field via an interface.
+func (v *ViewerProjectsV2ViewerUserProjectsV2ProjectV2ConnectionEdgesProjectV2EdgeNodeProjectV2CreatorUser) GetUrl() string {
+	return v.Url
 }
 
 // __ViewerProjectsV2Input is used internally by genqlient
@@ -152,7 +513,7 @@ func Login(
 
 // The query or mutation executed by ViewerProjectsV2.
 const ViewerProjectsV2_Operation = `
-query ViewerProjectsV2 ($first: Int! = 10, $after: String) {
+query ViewerProjectsV2 ($first: Int!, $after: String) {
 	viewer {
 		projectsV2(first: $first, after: $after) {
 			edges {
@@ -160,6 +521,13 @@ query ViewerProjectsV2 ($first: Int! = 10, $after: String) {
 				node {
 					id
 					title
+					number
+					url
+					creator {
+						__typename
+						login
+						url
+					}
 				}
 			}
 		}
