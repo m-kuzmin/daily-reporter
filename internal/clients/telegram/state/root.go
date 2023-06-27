@@ -52,18 +52,18 @@ func (s *Root) PrivateTextMessage(message update.PrivateTextMessage) (Handler, [
 		return &AddAPIKey{prevState: *s}, []response.BotAction{response.NewSendMessage(
 			response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.AddAPIKey)}
 	case "/listprojects":
-		return s.handleListProjects(message)
+		return s.handleListProjects(message.Chat.ID)
 	default:
 		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 			s.responses.UnknownMessage)}
 	}
 }
 
-func (s *Root) handleListProjects(message update.PrivateTextMessage) (Handler, []response.BotAction) {
+func (s *Root) handleListProjects(chatID update.ChatID) (Handler, []response.BotAction) {
 	// Get the user's key
 	key, isSome := s.userData.GithubAPIKey.Unwrap()
 	if !isSome {
-		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
 			s.responses.ListProjectsWithoutAPIKey)}
 	}
 
@@ -71,12 +71,12 @@ func (s *Root) handleListProjects(message update.PrivateTextMessage) (Handler, [
 	projects, err := github.NewClient(key).ListViewerProjects(option.None[int](),
 		option.None[github.ProjectCursor]())
 	if err != nil {
-		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
 			s.responses.GitHubAPIErrorGeneric)}
 	}
 
 	if len(projects) == 0 {
-		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprintln(message.Chat.ID)),
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprintln(chatID)),
 			s.responses.UserHasZeroProjects)}
 	}
 
@@ -100,7 +100,7 @@ func (s *Root) handleListProjects(message update.PrivateTextMessage) (Handler, [
 			project.Number)
 	}
 
-	return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprintln(message.Chat.ID)),
+	return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprintln(chatID)),
 		projectList)}
 }
 
