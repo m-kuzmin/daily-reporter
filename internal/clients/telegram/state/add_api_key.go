@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
@@ -40,6 +41,8 @@ func (s *AddAPIKey) PrivateTextMessage(message update.PrivateTextMessage) (Handl
 
 		login, err := client.Login()
 		if err != nil {
+			log.Printf("While requesting user's GitHub username: %s", err)
+
 			return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 				s.responses.BadAPIKey)}
 		}
