@@ -58,6 +58,8 @@ type Client struct {
 	stopProcessing     context.CancelFunc // Triggers the shutdown
 	conversationStates map[string]state.Handler
 	template           template.Template
+
+	bot update.User
 }
 
 /*
@@ -96,6 +98,9 @@ func (c *Client) Start(threads uint) <-chan error {
 	errCh := make(chan error)
 	c.errCh = errCh
 
+	ctx, cancel := context.WithCancel(context.Background())
+	c.stopProcessing = cancel
+
 	if threads == 0 {
 		//nolint:goerr113
 		c.fail(fmt.Errorf(
@@ -105,13 +110,19 @@ func (c *Client) Start(threads uint) <-chan error {
 		return errCh
 	}
 
+	botUser, err := c.GetMe(ctx)
+	if err != nil {
+		c.fail(err)
+	}
+
+	c.bot = botUser
+	log.Printf("Bot's user: %#v", botUser)
+
 	var (
-		updateCh    = make(chan update.Update, threads)
-		stateCh     = make(chan updateWithState)
-		ctx, cancel = context.WithCancel(context.Background())
+		updateCh = make(chan update.Update, threads)
+		stateCh  = make(chan updateWithState)
 	)
 
-	c.stopProcessing = cancel
 	c.conversationStates = make(map[string]state.Handler)
 
 	go c.getUpdates(ctx, updateCh)
@@ -122,6 +133,21 @@ func (c *Client) Start(threads uint) <-chan error {
 	}
 
 	return errCh
+}
+
+// GetMe returns a user that represents this bot
+func (c *Client) GetMe(ctx context.Context) (update.User, error) {
+	req, err := c.NewGetRequest(ctx, "getMe", url.Values{}, nil)
+	if err != nil {
+		return update.User{}, err
+	}
+
+	botUser, err := doAPIRequest[update.User](c, req)
+	if err != nil {
+		return update.User{}, err
+	}
+
+	return botUser, nil
 }
 
 // updateWithState is used to join an update with conversation state for that update.
@@ -358,7 +384,7 @@ func (c *Client) processUpdates(updateWithStateCh <-chan updateWithState) {
 	c.wg.Add(1)
 
 	for job := range updateWithStateCh {
-		state, actions := state.Handle(job.update, job.state)
+		state, actions := state.Handle(c.bot, job.update, job.state)
 		for _, action := range actions {
 			endpoint, query := action.URLEncode()
 
@@ -383,7 +409,7 @@ func (c *Client) processUpdates(updateWithStateCh <-chan updateWithState) {
 	c.wg.Done()
 }
 
-// Makes a GET method request from components. Panics if the request cannot be created
+// Makes a GET method request from components.
 func (c *Client) NewGetRequest(
 	ctx context.Context, endpoint string, query url.Values, body io.Reader,
 ) (*http.Request, error) {
