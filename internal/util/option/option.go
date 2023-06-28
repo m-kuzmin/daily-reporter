@@ -3,6 +3,8 @@ package option
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // https://doc.rust-lang.org/std/option/
@@ -27,13 +29,13 @@ func (o Option[T]) IsNone() bool {
 }
 
 func (o Option[T]) MustUnwrap() T {
-	if o.IsSome() {
-		return o.value.(T) //nolint:forcetypeassert // Type T is guaranteed
+	if v, isSome := o.Unwrap(); isSome {
+		return v
 	}
 
 	var t T
 
-	panic(fmt.Sprintf("MustUnwrap called on a None Option of type %T.", t))
+	panic(fmt.Sprintf("MustUnwrap called on a None Option[%T].", t))
 }
 
 func (o Option[T]) Unwrap() (T, bool) {
@@ -47,19 +49,11 @@ func (o Option[T]) Unwrap() (T, bool) {
 }
 
 func (o Option[T]) UnwrapOr(ifNone T) T {
-	if o.IsSome() {
-		return o.value.(T) //nolint:forcetypeassert // Type T is guaranteed
+	if v, isSome := o.Unwrap(); isSome {
+		return v
 	}
 
 	return ifNone
-}
-
-func Flatmap[T, U any](o Option[T], f func(T) U) Option[U] {
-	if v, isSome := o.Unwrap(); isSome {
-		return Some(f(v))
-	}
-
-	return None[U]()
 }
 
 func (o *Option[T]) UnmarshalJSON(data []byte) error {
@@ -73,4 +67,14 @@ func (o *Option[T]) UnmarshalJSON(data []byte) error {
 	*o = Some[T](parsed)
 
 	return nil
+}
+
+func (o *Option[T]) MarshalJSON() ([]byte, error) {
+	if t, isSome := o.Unwrap(); isSome {
+		marshaled, err := json.Marshal(t)
+
+		return marshaled, errors.Wrapf(err, "while marshaling %#v", t)
+	}
+
+	return make([]byte, 0), nil
 }
