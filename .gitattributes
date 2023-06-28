@@ -1,3 +1,4 @@
 go.mod -diff
 go.sum -diff
+assets/** -diff
 

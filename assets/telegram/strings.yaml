@@ -21,6 +21,7 @@ templates:
         <b>Private messages:</b>
         • /addApiKey: Set/delete your GitHub API key
         • /listProjects: List your projects (if the API key is set)
+            • /listProjects after ID: Used to show the next page
 
         In general all multistep commands have /none to delete/unset/skip assignment and /cancel to exit without changes.
         Here's an example:
@@ -33,9 +34,9 @@ templates:
 
     privateCommandUsed: ["This command only works in private (direct) messages for your privacy and security."]
 
-    githubApiErrorGeneric: ["GitHub API returned an error"]
-
     userHasZeroProjects: ["You seem to have 0 projects in your profile!"]
+
+    lastProjectsPage: ["No more pages"]
 
     addApiKey:
       - |
