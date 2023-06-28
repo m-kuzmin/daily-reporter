@@ -136,10 +136,12 @@ func (s *Root) handleListProjects(chatID update.ChatID, after option.Option[stri
 
 	resp := response.NewSendMessage(response.ChatID(fmt.Sprintln(chatID)), projectList)
 
-	resp = resp.SetReplyMarkup([][]response.InlineKeyboardButton{{
-		response.InlineButtonSwitchQueryCurrentChat("Next page",
-			"/listprojects after "+string(projects[len(projects)-1].Cursor)),
-	}})
+	if len(projects) == projectsOnPage {
+		resp = resp.SetReplyMarkup([][]response.InlineKeyboardButton{{
+			response.InlineButtonSwitchQueryCurrentChat("Next page",
+				"/listprojects after "+string(projects[len(projects)-1].Cursor)),
+		}})
+	}
 
 	return s, []response.BotAction{resp}
 }
