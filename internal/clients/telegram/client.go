@@ -96,7 +96,7 @@ There are also `goroutines` amount (argument to this func) of processor goroutin
 to process multiple updates at the same time
 */
 func (c *Client) Start(threads uint) <-chan error {
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	c.errCh = errCh
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -114,6 +114,8 @@ func (c *Client) Start(threads uint) <-chan error {
 	botUser, err := c.GetMe(ctx)
 	if err != nil {
 		c.fail(err)
+
+		return errCh
 	}
 
 	c.bot = botUser
