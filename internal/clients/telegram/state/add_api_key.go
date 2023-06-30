@@ -10,6 +10,7 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
 	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
+	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
 
 type AddAPIKey struct {
@@ -27,31 +28,34 @@ type addAPIKeyResponses struct {
 }
 
 func (s *AddAPIKey) PrivateTextMessage(message update.PrivateTextMessage) (Handler, []response.BotAction) {
-	switch strings.ToLower(strings.TrimSpace(message.Text)) {
-	case "/cancel":
-		return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-			s.responses.Cancel)}
-	case "/none":
-		s.prevState.userData.GithubAPIKey = option.None[string]()
+	cmd, isCmd := slashcmd.Parse(message.Text)
+	if isCmd {
+		switch strings.ToLower(cmd.Method) {
+		case "cancel":
+			return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+				s.responses.Cancel)}
+		case "none":
+			s.prevState.userData.GithubAPIKey = option.None[string]()
 
-		return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-			s.responses.Deleted)}
-	default:
-		client := github.NewClient(message.Text)
-
-		login, err := client.Login()
-		if err != nil {
-			log.Printf("While requesting user's GitHub username: %s", err)
-
-			return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-				s.responses.BadAPIKey)}
+			return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+				s.responses.Deleted)}
 		}
-
-		s.prevState.userData.GithubAPIKey = option.Some(message.Text)
-
-		return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-			fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview()}
 	}
+
+	client := github.NewClient(message.Text)
+
+	login, err := client.Login()
+	if err != nil {
+		log.Printf("While requesting user's GitHub username: %s", err)
+
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.BadAPIKey)}
+	}
+
+	s.prevState.userData.GithubAPIKey = option.Some(message.Text)
+
+	return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+		fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview()}
 }
 
 func (s *AddAPIKey) GroupTextMessage(message update.GroupTextMessage) (Handler, []response.BotAction) {

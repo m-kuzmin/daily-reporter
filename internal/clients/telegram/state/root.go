@@ -1,7 +1,6 @@
 package state
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -11,7 +10,7 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
 	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
-	"github.com/vektah/gqlparser/v2/gqlerror"
+	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
 
 // Root is the default state
@@ -43,42 +42,42 @@ type rootResponses struct {
 	ListProjectsWithoutAPIKey string `template:"listProjectsWithoutApiKey"`
 }
 
-const listProjectsCommand = "/listprojects"
+const listProjectsCommand = "listprojects"
 
 func (s *Root) PrivateTextMessage(message update.PrivateTextMessage) (Handler, []response.BotAction) {
-	switch strings.ToLower(strings.TrimSpace(message.Text)) {
-	case "/start":
+	cmd, isCmd := slashcmd.Parse(message.Text)
+	if !isCmd {
+		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
+			s.responses.UnknownMessage)}
+	}
+
+	switch strings.ToLower(cmd.Method) {
+	case "start":
 		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 			s.responses.Start)}
-	case "/help":
+	case "help":
 		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 			s.responses.Help)}
-	case "/addapikey":
+	case "addapikey":
 		return &AddAPIKey{prevState: *s}, []response.BotAction{response.NewSendMessage(
 			response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.AddAPIKey)}
 	case listProjectsCommand:
-		return s.handleListProjects(message.Chat.ID, option.None[string]())
-	}
-
-	// Parse /listProjects args
-	command := strings.Split(message.Text, " ")
-
-	const listProjectsAfterArgs = 3
-
-	if len(command) == listProjectsAfterArgs {
-		if strings.ToLower(command[0]) == listProjectsCommand {
-			if command[1] == "after" {
-				return s.handleListProjects(message.Chat.ID, option.Some(command[2]))
-			}
+		after := option.None[github.ProjectCursor]()
+		if afterV, hasAfter := cmd.NextAfter("after"); hasAfter && afterV != "" {
+			after = option.Some(github.ProjectCursor(afterV))
 		}
+
+		return s.handleListProjects(message.Chat.ID, after)
 	}
 
 	return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 		s.responses.UnknownMessage)}
 }
 
-//nolint:funlen
-func (s *Root) handleListProjects(chatID update.ChatID, after option.Option[string]) (Handler, []response.BotAction) {
+func (s *Root) handleListProjects(
+	chatID update.ChatID,
+	afterCursor option.Option[github.ProjectCursor],
+) (Handler, []response.BotAction) {
 	const projectsOnPage = 10
 
 	// Get the user's key
@@ -89,21 +88,13 @@ func (s *Root) handleListProjects(chatID update.ChatID, after option.Option[stri
 	}
 
 	// Get the user's projects
-	afterCursor := option.None[github.ProjectCursor]()
-
-	if projectID := after.UnwrapOr(""); projectID != "" {
-		afterCursor = option.Some(github.ProjectCursor(projectID))
-	}
-
-	projects, err := github.NewClient(key).ListViewerProjects(option.Some(projectsOnPage),
-		afterCursor)
+	projects, err := github.NewClient(key).ListViewerProjects(option.Some(projectsOnPage), afterCursor)
 	if err != nil {
 		log.Printf("While requesting user's projects: %s", err)
 
-		var gqlerr *gqlerror.Error
-		if errors.As(err, &gqlerr) {
+		if gqlMessage, is := github.GqlErrorString(err); is {
 			return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
-				fmt.Sprintf("GitHub API error: %s", gqlerr.Message))}
+				fmt.Sprintf("GitHub API error: %s", gqlMessage))}
 		}
 
 		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
@@ -111,7 +102,7 @@ func (s *Root) handleListProjects(chatID update.ChatID, after option.Option[stri
 	}
 
 	if len(projects) == 0 {
-		if after.IsNone() {
+		if afterCursor.IsNone() {
 			return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprintln(chatID)),
 				s.responses.UserHasZeroProjects)}
 		}
@@ -121,17 +112,11 @@ func (s *Root) handleListProjects(chatID update.ChatID, after option.Option[stri
 	}
 
 	// Print the projects
-	projectList := "Your projects (10/page)"
+	projectList := fmt.Sprintf("Your projects (%d/page)", projectsOnPage)
 
 	for _, project := range projects {
 		projectList += fmt.Sprintf("\n\n<code>%s</code> <a href=%q><b>%s</b></a> (<a href=%q>%s</a>/%d)",
-			project.Cursor,
-			project.URL,
-			project.Title,
-			project.CreatorURL,
-			project.CreatorLogin,
-			project.Number,
-		)
+			project.Cursor, project.URL, project.Title, project.CreatorURL, project.CreatorLogin, project.Number)
 	}
 
 	resp := response.NewSendMessage(response.ChatID(fmt.Sprintln(chatID)), projectList)
@@ -139,7 +124,7 @@ func (s *Root) handleListProjects(chatID update.ChatID, after option.Option[stri
 	if len(projects) == projectsOnPage {
 		resp = resp.SetReplyMarkup([][]response.InlineKeyboardButton{{
 			response.InlineButtonSwitchQueryCurrentChat("Next page",
-				"/listprojects after "+string(projects[len(projects)-1].Cursor)),
+				fmt.Sprintf("/%s after %s", listProjectsCommand, projects[len(projects)-1].Cursor)),
 		}})
 	}
 
@@ -147,14 +132,19 @@ func (s *Root) handleListProjects(chatID update.ChatID, after option.Option[stri
 }
 
 func (s *Root) GroupTextMessage(message update.GroupTextMessage) (Handler, []response.BotAction) {
-	switch strings.ToLower(strings.TrimSpace(message.Text)) {
-	case "/start":
+	cmd, isCmd := slashcmd.Parse(message.Text)
+	if !isCmd {
+		return s, response.Nothing()
+	}
+
+	switch strings.ToLower(cmd.Method) {
+	case "start":
 		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 			s.responses.Start)}
-	case "/help":
+	case "help":
 		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 			s.responses.Help)}
-	case "/addapikey", listProjectsCommand:
+	case "addapikey", listProjectsCommand:
 		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
 			s.responses.PrivateCommandUsed)}
 	default:
