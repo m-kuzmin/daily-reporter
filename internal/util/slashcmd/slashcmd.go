@@ -13,27 +13,10 @@ import (
 /*
 Parse parses a string into a command. If bool is false the string was not a command.
 
-# Parsing rules
-
-- The first character should be '/' followed by non-space characters which are the method string value.
-- After the method there can be any amount of space characters (`unicode.IsSpace()`)
-- After those spaces between the method and args, the args are split using these rules
-  - Generally a space will indicate a boundary between args
-  - `\` is an escape character which means that the next character is placed into the current argument regardless of
-    other rules. So `\"\ \\` produces `" \`. If a `\` is the last character it is simply ignored.
-  - Unescaped `"` will enable space escaping until the next unescaped quote.
-  - If a space character is not preceded by `\` or inside a quoted region it indicates the end of the current arg and
-    the beginning of a new one.
-
-Here are a few examples:
-
-	`doesnt start with slash`   => {}, false
-	`/foo`                      => {"foo", []}
-	`/foo bar`                  => {"foo", [ "bar" ]}
-	`/foo "not bar"`            => {"foo", [ "not bar" ]}
-	`/foo not\ bar`             => {"foo", [ "not bar" ]}
-	`/foo not" "bar`            => {"foo", [ "not bar" ]}
-	`/foo bar \`                => {"foo", [ "bar"]}
+The parser splits the arguments by space. To have an argument contain space you can surround it with `""`(surround with
+double quotes) or use `\ `(backslash followed by space). For simplicity even inside the quoted region a single backslash
+has to be written as two backslashes (`\\`). A literal double quote is `\"`(backslash followed by double quote). Quotes
+by themselves dont indicate an argument boundary.
 */
 func Parse(source string) (Command, bool) {
 	parts := strings.SplitN(source, " ", 2) //nolint:gomnd
@@ -111,7 +94,7 @@ type Command struct {
 	Args   []string
 }
 
-// NextAfter finds `key` in Args and returns the next string (Args[posOfKey+1])
+// NextAfter finds `key` in Args and returns the next string (`Args[posOfKey+1]`)
 func (c Command) NextAfter(key string) (string, bool) {
 	for i, arg := range c.Args {
 		if arg == key && len(c.Args) > i+1 {
