@@ -17,6 +17,7 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/state"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
 	"github.com/m-kuzmin/daily-reporter/internal/template"
+	"github.com/m-kuzmin/daily-reporter/internal/util/borrowonce"
 )
 
 const (
@@ -54,10 +55,10 @@ type Client struct {
 	client   http.Client
 	wg       sync.WaitGroup // Used to make sure all processor threads are done
 	// When the bot crashes instead of paniking and crashing the whole app it sends the error here
-	errCh              chan<- error
-	stopProcessing     context.CancelFunc // Triggers the shutdown
-	conversationStates map[string]state.Handler
-	template           template.Template
+	errCh             chan<- error
+	stopProcessing    context.CancelFunc // Triggers the shutdown
+	conversationStore borrowonce.Storage[string, state.Handler]
+	template          template.Template
 
 	bot update.User
 }
@@ -116,14 +117,13 @@ func (c *Client) Start(threads uint) <-chan error {
 	}
 
 	c.bot = botUser
-	log.Printf("Bot's user: %#v", botUser)
 
 	var (
-		updateCh = make(chan update.Update, threads)
-		stateCh  = make(chan updateWithState)
+		updateCh = make(chan update.Update, 1)
+		stateCh  = make(chan updateWithState, threads)
 	)
 
-	c.conversationStates = make(map[string]state.Handler)
+	c.conversationStore = borrowonce.NewStorage[string, state.Handler]()
 
 	go c.getUpdates(ctx, updateCh)
 	go c.stateQueue(updateCh, stateCh)
@@ -152,8 +152,8 @@ func (c *Client) GetMe(ctx context.Context) (update.User, error) {
 
 // updateWithState is used to join an update with conversation state for that update.
 type updateWithState struct {
-	update update.Update // The update itself
-	state  state.Handler // Conversation state
+	update update.Update                     // The update itself
+	state  *borrowonce.Future[state.Handler] // Conversation state
 }
 
 /*
@@ -290,14 +290,18 @@ However it is not as simple as that. After an update is processed it could chang
 of the conversation. If two updates try to use and change the same state they could create
 weird bugs. Refer to /docs/telegram-client/README.md for details.
 */
-func (c *Client) stateQueue(updateCh chan update.Update, stateCh chan<- updateWithState) {
+func (c *Client) stateQueue(updateCh <-chan update.Update, stateCh chan<- updateWithState) {
 	c.wg.Add(1)
+
+	shutdown := func() {
+		c.wg.Done()
+		close(stateCh)
+	}
 
 	// Cannot use normal defer here because of call to c.fail().
 	defer func() {
 		if err := recover(); err != nil {
-			c.wg.Done()
-			close(stateCh)
+			shutdown()
 			log.Panicf("Caught panic in stateQueue: %s", err)
 		}
 	}()
@@ -306,73 +310,44 @@ func (c *Client) stateQueue(updateCh chan update.Update, stateCh chan<- updateWi
 	for upd := range updateCh {
 		upd := upd // creates a copy
 
-		state, err := c.takeState(upd)
-		if err != nil {
-			c.wg.Done()
-			close(stateCh)
-			c.fail(err)
+		handle, ok := upd.StateID()
 
-			return
+		future := borrowonce.NewImmediateFuture[state.Handler](&state.Root{})
+
+		if ok {
+			future = c.takeState(handle)
 		}
-
 		stateCh <- updateWithState{
 			update: upd,
-			state:  state,
+			state:  future,
 		}
 	}
 
-	c.wg.Done()
-	close(stateCh)
+	shutdown()
 }
 
 /*
-TODO(takeState, releaseState): Once takeState gives out an instance of state for a conversation it should not be able to
-give out another instance. If there are 2 things that hold on to state to the same conversation they could try to update
-it (save it to state storage) which would result in one state being lost and the final state is whatever was saved last.
-They could also be operating on invalid state.
-
-Consider 2 updates: /quiz and then /start. And lets say /quiz makes the bot send a question and the next message (in
-this case /start) would be the answer. If we process /quiz and /start at the same time /start update would have no idea
-that it should be handled as an answer to /quiz, and the user will get 2 messages: the first one is the quiz question
-and the second one is the greeting message from /start. Then the user tries to answer the quiz and nothing happens
-because /start saved the state last and overwrote what /quiz did.
-
-TODO: If the state for a conversation was given out and not released via releaseState() this should fail or block.
+takeState returns a Future to access the latest value of the state. If no state is in the storage then assigns it to
+Root
 */
-func (c *Client) takeState(u update.Update) (state.Handler, error) {
-	handle, isSome := u.StateID().Unwrap()
-	if isSome {
-		if state, found := c.conversationStates[handle]; found {
-			err := state.SetTemplate(c.template)
-			if err != nil {
-				log.Printf("While fetching state from storage for handle %q: %s", handle, err)
-			} else {
-				log.Printf("Lent state %T", state)
-
-				return state, nil
-			}
-		}
+func (c *Client) takeState(handle string) *borrowonce.Future[state.Handler] {
+	if future, exists := c.conversationStore.Borrow(handle); exists {
+		return future
 	}
 
-	state := &state.Root{}
+	c.conversationStore.Set(handle, &state.Root{})
 
-	if err := state.SetTemplate(c.template); err != nil {
-		return state, fmt.Errorf("while fetching state from storage for the default state: %w", err)
+	if future, exists := c.conversationStore.Borrow(handle); exists {
+		return future
 	}
 
-	log.Printf("Lent state %T", state)
-
-	return state, nil
+	// Implementation of borrownonce.Store guarantees that after a value is Set() it is available to borrow
+	panic("conversation store didnt lend a value after it was set explicitly")
 }
 
 // TODO: Should unlock the lock that  prevents takeState() from giving out state for the conversation.
-func (c *Client) releaseState(u update.Update, s state.Handler) {
-	if handle, isSome := u.StateID().Unwrap(); !isSome {
-		log.Printf("No state handle for an update %#v", u)
-	} else {
-		log.Printf("Released state: %T", s)
-		c.conversationStates[handle] = s
-	}
+func (c *Client) releaseState(handle string, state state.Handler) {
+	c.conversationStore.Return(handle, state)
 }
 
 /*
@@ -384,7 +359,17 @@ func (c *Client) processUpdates(updateWithStateCh <-chan updateWithState) {
 	c.wg.Add(1)
 
 	for job := range updateWithStateCh {
-		state, actions := state.Handle(c.bot, job.update, job.state)
+		handler := job.state.Wait()
+
+		err := handler.SetTemplate(c.template)
+		if err != nil {
+			c.wg.Done()
+			c.fail(fmt.Errorf("while setting template in processUpdates: %w", err))
+
+			return
+		}
+
+		state, actions := state.Handle(c.bot, job.update, handler)
 		for _, action := range actions {
 			endpoint, query := action.URLEncode()
 
@@ -403,7 +388,9 @@ func (c *Client) processUpdates(updateWithStateCh <-chan updateWithState) {
 			}
 		}
 
-		c.releaseState(job.update, state)
+		if id, ok := job.update.StateID(); ok {
+			c.releaseState(id, state)
+		}
 	}
 
 	c.wg.Done()
