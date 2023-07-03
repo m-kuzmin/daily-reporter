@@ -27,6 +27,16 @@ func (u Update) StateID() (string, bool) {
 	return "", false
 }
 
+func (u Update) UserID() (UserID, bool) {
+	if message, isSome := u.Message.Unwrap(); isSome {
+		if from, isSome := message.From.Unwrap(); isSome {
+			return from.ID, true
+		}
+	}
+
+	return UserID(0), false
+}
+
 type Message struct {
 	ID   MessageID             `json:"message_id"`
 	From option.Option[User]   `json:"from"`

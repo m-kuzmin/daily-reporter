@@ -13,32 +13,22 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
 
-type AddAPIKey struct {
-	responses addAPIKeyResponses
-	prevState Root // Keeps the user's settings that arent managed by this state
+type AddAPIKeyHandler struct {
+	responses *addAPIKeyResponses
+	userData  UserSharedData
 }
 
-type addAPIKeyResponses struct {
-	Cancel  string `template:"cancel"`
-	Success string `template:"success"`
-	Deleted string `template:"deleted"`
-
-	BadAPIKey           string `template:"badApiKey"`
-	KeySentInPublicChat string `template:"keySentInPublicChat"`
-}
-
-func (s *AddAPIKey) PrivateTextMessage(message update.PrivateTextMessage) (Handler, []response.BotAction) {
+func (s *AddAPIKeyHandler) PrivateTextMessage(message update.PrivateTextMessage) Transition {
 	cmd, isCmd := slashcmd.Parse(message.Text)
 	if isCmd {
 		switch strings.ToLower(cmd.Method) {
 		case "cancel":
-			return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-				s.responses.Cancel)}
-		case "none":
-			s.prevState.userData.GithubAPIKey = option.None[string]()
+			return s.returnToRootStateWithMessage(message.Chat.ID, s.responses.Cancel)
 
-			return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-				s.responses.Deleted)}
+		case "none":
+			s.userData.GithubAPIKey = option.None[string]()
+
+			return s.returnToRootStateWithMessage(message.Chat.ID, s.responses.Deleted)
 		}
 	}
 
@@ -48,31 +38,77 @@ func (s *AddAPIKey) PrivateTextMessage(message update.PrivateTextMessage) (Handl
 	if err != nil {
 		log.Printf("While requesting user's GitHub username: %s", err)
 
-		return s, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-			s.responses.BadAPIKey)}
+		return s.sameStateWithMessage(message.Chat.ID, s.responses.BadAPIKey)
 	}
 
-	s.prevState.userData.GithubAPIKey = option.Some(message.Text)
+	s.userData.GithubAPIKey = option.Some(message.Text)
 
-	return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-		fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview()}
+	return NewTransition(RootState{}, s.userData, []response.BotAction{response.NewSendMessage(response.ChatID(
+		fmt.Sprint(message.Chat.ID)), fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview()})
 }
 
-func (s *AddAPIKey) GroupTextMessage(message update.GroupTextMessage) (Handler, []response.BotAction) {
-	return &s.prevState, []response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-		s.responses.KeySentInPublicChat)}
+func (s *AddAPIKeyHandler) GroupTextMessage(message update.GroupTextMessage) Transition {
+	return s.returnToRootStateWithMessage(message.Chat.ID, s.responses.KeySentInPublicChat)
 }
 
-func (s *AddAPIKey) SetTemplate(template template.Template) error {
+func (s *AddAPIKeyHandler) Ignore() Transition {
+	return NewTransition(AddAPIKeyState{}, s.userData, response.Nothing())
+}
+
+/*
+returnToRootStateWithMessage returns to RootState with current userdata and sends one message to `chatID` chat with
+`message` text
+*/
+func (s AddAPIKeyHandler) returnToRootStateWithMessage(chatID update.ChatID, message string) Transition {
+	return NewTransition(RootState{}, s.userData, []response.BotAction{
+		response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), message),
+	})
+}
+
+/*
+sameStateWithMessage keeps the current state with current userdata and sends one message to `chatID` chat with
+`message` text
+*/
+func (s AddAPIKeyHandler) sameStateWithMessage(chatID update.ChatID, message string) Transition {
+	return NewTransition(AddAPIKeyState{}, s.userData, []response.BotAction{
+		response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), message),
+	})
+}
+
+type AddAPIKeyState struct{}
+
+func (AddAPIKeyState) Handler(userData UserSharedData, responses *Responses) Handler {
+	return &AddAPIKeyHandler{
+		responses: &responses.AddAPIKey,
+		userData:  userData,
+	}
+}
+
+type addAPIKeyResponses struct {
+	// Exit statuses
+
+	Cancel  string `template:"cancel"`
+	Success string `template:"success"`
+	Deleted string `template:"deleted"`
+
+	// Errors
+
+	BadAPIKey           string `template:"badApiKey"`
+	KeySentInPublicChat string `template:"keySentInPublicChat"`
+}
+
+func newAddAPIKeyResponse(template template.Template) (addAPIKeyResponses, error) {
 	group, err := template.Get("addApiKey")
 	if err != nil {
-		return fmt.Errorf(`while getting "addApiKey" group from template: %w`, err)
+		return addAPIKeyResponses{}, fmt.Errorf(`while getting "addApiKey" group from template: %w`, err)
 	}
 
-	err = group.Populate(&s.responses)
+	resp := addAPIKeyResponses{}
+
+	err = group.Populate(&resp)
 	if err != nil {
-		return fmt.Errorf(`while populating addApiKeyResponses from template: %w`, err)
+		return addAPIKeyResponses{}, fmt.Errorf(`while populating addApiKeyResponses from template: %w`, err)
 	}
 
-	return nil
+	return resp, nil
 }
