@@ -9,7 +9,10 @@ given to the person before and then wait until that person is done playing with 
 */
 package borrowonce
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 /*
 Storage lends values in such a way that the first borrower will immediately get the value, and all borrowers after will
@@ -60,7 +63,9 @@ func (s *Storage[K, V]) Set(key K, value V) { //nolint:golint // It's confusing 
 	defer s.storeMu.Unlock()
 
 	if _, exists := s.store[key]; exists {
-		panic("Tried to set an existing value in borrowonce.Storage. Use Release instead.")
+		panic(fmt.Sprintf("Tried to set an existing value in borrowonce.Storage[%T, %T]. Use Release instead.",
+			*new(K), *new(V),
+		))
 	}
 
 	s.store[key] = borrowable[V]{
@@ -110,7 +115,8 @@ func (s *Storage[K, V]) Return(key K, value V) { //nolint:golint
 
 	lockable, exists := s.store[key]
 	if !exists {
-		panic("Tried to release a key that isnt in borrowonce.Storage. Use Set instead.")
+		panic(fmt.Sprintf("Tried to release a key that isn't in borrowonce.Storage[%T, %T]. Use Set instead.",
+			*new(K), *new(V)))
 	}
 
 	lockable.value = value
