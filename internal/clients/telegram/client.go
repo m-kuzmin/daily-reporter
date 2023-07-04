@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -151,7 +152,11 @@ func (c *Client) GetMe(ctx context.Context) (update.User, error) {
 	var botUser update.User
 	err = json.Unmarshal(resp, &botUser)
 
-	return botUser, fmt.Errorf("while decoding /GetMe JSON response: %w", err)
+	if err != nil {
+		err = fmt.Errorf("while decoding /GetMe JSON response: %w", err)
+	}
+
+	return botUser, err
 }
 
 // updateWithState is used to join an update with conversation state for that update.
@@ -200,6 +205,7 @@ You can receive the errors from an error chan Start() gives back. You can assume
 the time you receive the error value.
 */
 func (c *Client) fail(err error) {
+	log.Printf("Bot declared a fatal error: %s", err)
 	c.Stop()
 	c.errCh <- err
 }
@@ -282,8 +288,8 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- update.Update) 
 				log.Printf("Sending update #%d to the queue", upd.ID)
 				updateCh <- (updates)[i]
 
-				if upd.ID > getUpdates.Offset {
-					getUpdates.Offset = upd.ID
+				if getUpdates.Offset <= upd.ID {
+					getUpdates.Offset = upd.ID + 1
 				}
 			}
 		}
@@ -324,13 +330,14 @@ func (c *Client) stateQueue(updateCh <-chan update.Update, stateCh chan<- update
 		upd := upd // creates a copy
 
 		futureState := borrowonce.NewImmediateFuture[state.State](&state.RootState{})
-		futureUserData := borrowonce.NewImmediateFuture[state.UserSharedData](state.UserSharedData{
-			GithubAPIKey: option.None[string](),
-		})
 
 		if handle, ok := upd.StateID(); ok {
 			futureState = c.borrowState(handle)
 		}
+
+		futureUserData := borrowonce.NewImmediateFuture[state.UserSharedData](state.UserSharedData{
+			GithubAPIKey: option.None[string](),
+		})
 
 		if handle, ok := upd.UserID(); ok {
 			futureUserData = c.borrowUserData(handle)
@@ -425,7 +432,7 @@ func (c *Client) processUpdates(ctx context.Context, updateWithStateCh <-chan up
 
 			_, err = c.requester.Do(ctx, endpoint, body)
 			if err != nil {
-				log.Printf("Error while performing /%s: %s\n", endpoint, err)
+				log.Printf("Error while performing /%s: %s\n  Details:\n    %s", endpoint, err, body)
 			}
 		}
 
@@ -436,24 +443,27 @@ func (c *Client) processUpdates(ctx context.Context, updateWithStateCh <-chan up
 		if id, ok := job.update.UserID(); ok {
 			c.userSharedDataStore.Return(id, transition.UserData)
 		}
+
+		log.Printf("Update #%d is processed.\n", job.update.ID)
 	}
 
 	shutdown()
 }
 
 type getUpdatesRequest struct {
-	Offset  update.UpdateID `json:"offset"`
-	Limit   int64           `json:"limit"`
-	Timeout int             `json:"timeout"`
+	Offset  update.UpdateID
+	Limit   int64
+	Timeout int
 }
 
 func (r getUpdatesRequest) Request(ctx context.Context, requester response.APIRequester) ([]update.Update, error) {
-	body, err := json.Marshal(r)
-	if err != nil {
-		return []update.Update{}, fmt.Errorf("while JSON serializing /getUpdates: %w", err)
-	}
+	url := url.Values{}
 
-	body, err = requester.Do(ctx, "getUpdates", body)
+	url.Set("offset", fmt.Sprint(r.Offset))
+	url.Set("limit", fmt.Sprint(r.Limit))
+	url.Set("timeout", fmt.Sprint(r.Timeout))
+
+	body, err := requester.DoURLEncoded(ctx, "getUpdates", url)
 	if err != nil {
 		return []update.Update{}, fmt.Errorf("while requesting /getUpdates: %w", err)
 	}
@@ -461,6 +471,9 @@ func (r getUpdatesRequest) Request(ctx context.Context, requester response.APIRe
 	var upd []update.Update
 
 	err = json.Unmarshal(body, &upd)
+	if err != nil {
+		err = fmt.Errorf("while decoding /getUpdates JSON response: %w", err)
+	}
 
-	return upd, fmt.Errorf("while decoding /getUpdates JSON response: %w", err)
+	return upd, err
 }

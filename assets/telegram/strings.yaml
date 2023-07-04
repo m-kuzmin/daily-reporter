@@ -30,14 +30,6 @@ templates:
 
       - botDescription
 
-    unknownMessage: ["Sorry, I don't understand. Try /help maybe?"]
-
-    privateCommandUsed: ["This command only works in private (direct) messages for your privacy and security."]
-
-    userHasZeroProjects: ["You seem to have 0 projects in your profile!"]
-
-    lastProjectsPage: ["No more pages"]
-
     addApiKey:
       - |
         You can create a key on <a href="%s">this page</a>. <b>Make sure</b>:
@@ -51,20 +43,61 @@ templates:
         /none deletes the currently saved key
       - githubTokenSettingsPage
 
-    listProjectsWithoutApiKey: ["You have not added a GitHub API key, so I can't see your projects. Please use /addApiKey"]
+    dailyStatus:
+      - |
+        I will generate a report for %%s. First I need to know what's your discovery of the day?
+
+        /none: Omit "Questions/Blockers" from the report.
+        /cancel: Cancel <code>/dailyStatus</code>
+
+    dailyStatusOneProject:
+      - |
+        I can only see one project: <code>%%s</code> <a href=%%q>%%s</a>.
+        Do you want me to use it as default?
+
+        /cancel: Cancel <code>/dailyStatus</code>
+
+    userHasZeroProjects:
+      - |
+        You seem to have 0 projects in your profile!
+        Either that or your API key doesnt have read:project permissions.
+
+    lastProjectsPage: ["No more pages"]
+
+    privateCommandUsed: ["This command only works in private (direct) messages for your privacy and security."]
+
+    unknownMessage: ["Sorry, I don't understand. Try /help maybe?"]
+
+    noApiKeyAdded: ["You have not added a GitHub API key, so I can't see your projects. Please use /addApiKey"]
+
+    useSetDefaultProject: ["You have too many projects. Use /setDefaultProject to define a default for this chat."]
 
   addApiKey:
+    success: ['Nice to meet you, <a href="https://github.com/%%s">%%s</a>!']
+
+    cancel: ["Canceled."]
+
+    deleted: ["Key deleted."]
+
+    badApiKey: ["Could not use your token, try again or /cancel"]
+
     keySentInPublicChat:
       - |
         If what you've sent me just now is a GitHub API token, <b>immediately</b> <a href="%s">revoke it</a>!
         You should never try to add tokens in a public chat.
       - githubTokenSettingsPage
 
-    badApiKey: ["Could not use your token, try again or /cancel"]
+  dailyStatus:
+    discoveryOfTheDay:
+      - |
+        Please provide me your discovery of the day.
 
-    cancel: ["Canceled."]
+        /none: Omit "Discovery of the day" from the report.
+        /cancel: Cancel <code>/dailyStatus</code>
+    questionsAndBlockers:
+      - |
+        Do you have any question/blockers?
 
-    success: ['Nice to meet you, <a href="https://github.com/%%s">%%s</a>!']
-
-    deleted: ["Key deleted."]
+        /none: Omit "Questions/Blockers" from the report.
+        /cancel: Cancel <code>/dailyStatus</code>
 ...

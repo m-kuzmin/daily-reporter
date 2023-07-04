@@ -1,99 +1,84 @@
 # Obtaining a list of project items
 
+The returned list contains
+- Title of the item
+- Status or `null`
+- If is assigned to viewer (owner of API token)
+
 ```graphql
-{
-  node(id: "PVT_kwHOBDyM384AP9Et") {
+query GetProjectItems($id: ID!, $first: Int!, $after: String) {
+  node(id: $id) {
     ... on ProjectV2 {
-      items(first: 60) {
-        pageInfo {
-          hasNextPage
-        }
-        edges {
-          node {
-            content {
-              ... on DraftIssue {
-                title
-                id
-                assignees(first: 50) {
-                  pageInfo {
-                    hasNextPage
-                  }
-                  edges {
-                    node {
-                      login
-                    }
-                  }
-                }
-              }
-              ... on Issue {
-                title
-                id
-                assignees(first: 50) {
-                  pageInfo {
-                    hasNextPage
-                  }
-                  edges {
-                    node {
-                      login
-                    }
-                  }
-                }
-              }
-              ... on PullRequest {
-                title
-                id
-                assignees(first: 50) {
-                  pageInfo {
-                    hasNextPage
-                  }
-                  edges {
-                    node {
-                      login
-                    }
-                  }
+      items(first: $first, after: $after) {
+        nodes {
+          status: fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue {
+              name
+            }
+          }
+          assignedTo: fieldValueByName(name: "Assignees") {
+            ... on ProjectV2ItemFieldUserValue {
+              users(first: 30) {
+                nodes {
+                  isViewer
                 }
               }
             }
-            id
-            type
           }
+          content {
+            ... on DraftIssue {
+              title
+            }
+            ... on Issue {
+              title
+            }
+            ... on PullRequest {
+              title
+            }
+          }
+        }
+        pageInfo {
+          endCursor
+          startCursor
+          hasNextPage
         }
       }
     }
   }
 }
 ```
+
 ```json
 {
   "data": {
     "node": {
       "items": {
-        "pageInfo": {
-          "hasNextPage": false
-        },
-        "edges": [
+        "nodes": [
           {
-            "node": {
-              "content": {
-                "title": "Investigate github project cli",
-                "id": "DI_...",
-                "assignees": {
-                  "pageInfo": {
-                    "hasNextPage": false
-                  },
-                  "edges": [
-                    {
-                      "node": {
-                        "login": "USERNAME"
-                      }
-                    }
-                  ]
-                }
-              },
-              "id": "PVTI_...",
-              "type": "DRAFT_ISSUE"
+            "status": {
+              "name": "In Progress"
+            },
+            "assignedTo": {
+              "users": {
+                "nodes": [
+                  {
+                    "isViewer": true
+                  }
+                ]
+              }
+            },
+            "content": {
+              "title": "/dailyStatus"
             }
-          },
-
-          ...
+          }
+        ],
+        "pageInfo": {
+          "endCursor": "MQ",
+          "startCursor": "MQ",
+          "hasNextPage": true
+        }
+      }
+    }
+  }
+}
 ```

@@ -7,8 +7,9 @@ Responses holds parsed and ready to use responses for all states. You can be sur
 struct because of `ConversationState` interface.
 */
 type Responses struct {
-	Root      rootResponses
-	AddAPIKey addAPIKeyResponses
+	Root        rootResponses
+	AddAPIKey   addAPIKeyResponses
+	DailyStatus DailyStatusResponses
 }
 
 /*
@@ -26,8 +27,14 @@ func NewResponses(templ template.Template) (Responses, error) {
 		return Responses{}, err
 	}
 
+	dailyStatus, err := newDailyStatusResponse(templ)
+	if err != nil {
+		return Responses{}, err
+	}
+
 	return Responses{
-		Root:      root,
-		AddAPIKey: addAPIKey,
+		Root:        root,
+		AddAPIKey:   addAPIKey,
+		DailyStatus: dailyStatus,
 	}, nil
 }

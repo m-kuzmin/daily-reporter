@@ -1,6 +1,8 @@
 package github
 
 import (
+	"net/http"
+
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -18,4 +20,20 @@ func GqlErrorString(err error) (string, bool) {
 	}
 
 	return "", false
+}
+
+type authedTransport struct {
+	token   string
+	wrapped http.RoundTripper
+}
+
+func (t *authedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", "Bearer "+t.token)
+
+	resp, err := t.wrapped.RoundTrip(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to perform RoundTrip in authedTransport")
+	}
+
+	return resp, nil
 }
