@@ -59,12 +59,12 @@ func (o *Option[T]) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (o *Option[T]) MarshalJSON() ([]byte, error) {
+func (o Option[T]) MarshalJSON() ([]byte, error) {
 	if t, isSome := o.Unwrap(); isSome {
 		marshaled, err := json.Marshal(t)
 
 		return marshaled, errors.Wrapf(err, "while marshaling %#v", t)
 	}
 
-	return make([]byte, 0), nil
+	return []byte("null"), nil
 }

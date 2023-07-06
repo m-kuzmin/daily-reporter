@@ -7,8 +7,9 @@ import (
 )
 
 type Update struct {
-	ID      UpdateID               `json:"update_id"`
-	Message option.Option[Message] `json:"message,omitempty"`
+	ID            UpdateID                     `json:"update_id"`
+	Message       option.Option[Message]       `json:"message,omitempty"`
+	CallbackQuery option.Option[CallbackQuery] `json:"callback_query"`
 }
 
 //nolint:revive,golint // update.UpdateID is exactly what it should be named.
@@ -21,6 +22,12 @@ func (u Update) StateID() (string, bool) {
 	if message, isSome := u.Message.Unwrap(); isSome {
 		if from, isSome := message.From.Unwrap(); isSome {
 			return fmt.Sprintf("%d:%d", message.Chat.ID, from.ID), true
+		}
+	}
+
+	if callback, isSome := u.CallbackQuery.Unwrap(); isSome {
+		if message, isSome := callback.Message.Unwrap(); isSome {
+			return fmt.Sprintf("%d:%d", message.Chat.ID, callback.From.ID), true
 		}
 	}
 
@@ -46,6 +53,15 @@ type Message struct {
 }
 
 type MessageID int64
+
+type CallbackQuery struct {
+	ID      CallbackQueryID        `json:"id"`
+	From    User                   `json:"from"`
+	Message option.Option[Message] `json:"message,omitempty"`
+	Data    option.Option[string]  `json:"data,omitempty"`
+}
+
+type CallbackQueryID string
 
 type User struct {
 	ID           UserID                `json:"id"`

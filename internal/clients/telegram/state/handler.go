@@ -1,6 +1,7 @@
 package state
 
 import (
+	"log"
 	"strings"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
@@ -11,6 +12,7 @@ import (
 type Handler interface {
 	PrivateTextMessage(update.PrivateTextMessage) Transition
 	GroupTextMessage(update.GroupTextMessage) Transition
+	CallbackQuery(update.CallbackQuery) Transition
 	Ignore() Transition
 }
 
@@ -54,6 +56,12 @@ func Handle(bot update.User, upd update.Update, state Handler) Transition {
 			return transition
 		}
 	}
+
+	if cq, isSome := upd.CallbackQuery.Unwrap(); isSome {
+		return state.CallbackQuery(cq)
+	}
+
+	log.Println("Ignoring this update using state.Ignore()")
 
 	return state.Ignore()
 }
