@@ -9,18 +9,30 @@ import (
 )
 
 /*
-GqlErrorString returns `gqlerror.Error.Message` if the error is of that type. If the error is nil or not from gql then
-`"", false`.
+GqlErrorStringOr tries to convert an error that came from a GraphQL query into a user-understandable string. fmtStr is
+the first parameter to fmt.Sprintf and the error `string` is the only other parameter.
+
+If the error cannot be classified (and thus prettified) returns `ifNotGqlError`.
+
+The function should be called only `if err != nil`. If the error is nil the function panics (indicating that you should
+find where you called it without checking and fix that).
 */
-func GqlErrorString(err error) (string, bool) {
-	if err != nil {
-		var gqlerr *gqlerror.Error
-		if errors.As(err, &gqlerr) {
-			return gqlerr.Message, true
-		}
+func GqlErrorStringOr(fmtStr string, err error, ifNotGqlError string) string {
+	if err == nil {
+		panic("github.GqlErrorStringOr() expects an `error != nil`")
 	}
 
-	return "", false
+	var gqlerr *gqlerror.Error
+	if errors.As(err, &gqlerr) {
+		return fmt.Sprint(fmtStr, gqlerr.Error())
+	}
+
+	var gqllist *gqlerror.List
+	if errors.As(err, &gqllist) {
+		return fmt.Sprint(fmtStr, gqllist.Error())
+	}
+
+	return ifNotGqlError
 }
 
 type authedTransport struct {

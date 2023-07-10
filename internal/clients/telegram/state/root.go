@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -140,11 +141,8 @@ func (s *RootHandler) handleListProjects(
 	if err != nil {
 		log.Printf("While requesting user's projects: %s", err)
 
-		if gqlMessage, is := github.GqlErrorString(err); is {
-			return s.replyWithMessage(chatID, fmt.Sprintf("GitHub API error: %s", gqlMessage))
-		}
-
-		return s.replyWithMessage(chatID, "Something went wrong while doing a GitHub API request")
+		return s.replyWithMessage(chatID,
+			github.GqlErrorStringOr("Github API error: %s", err, s.responses.GithubErrorGeneric))
 	}
 
 	if len(projects) == 0 {
@@ -189,15 +187,16 @@ func (s *RootHandler) handleDailyStatus(chatID update.ChatID) Transition {
 	projects, err := github.NewClient(key).ListViewerProjects(moreThanOne,
 		option.None[github.ProjectCursor]())
 	if err != nil {
-		if gqlMessage, is := github.GqlErrorString(err); is {
-			return s.replyWithMessage(chatID, fmt.Sprintf("GitHub API error: %s", gqlMessage))
-		}
+		return s.replyWithMessage(chatID,
+			github.GqlErrorStringOr("GitHub API error: %s", err, s.responses.GithubErrorGeneric))
 	}
 
-	return s.maybeTransitionIntoDailyStatus(projects, chatID)
+	return s.maybeTransitionIntoDailyStatus(context.Background(), projects, chatID)
 }
 
-func (s *RootHandler) maybeTransitionIntoDailyStatus(projects []github.ProjectV2, chatID update.ChatID) Transition {
+func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, projects []github.ProjectV2,
+	chatID update.ChatID,
+) Transition {
 	switch len(projects) {
 	case 0:
 		return NewTransition(s.RootState, s.userData, []response.BotAction{
