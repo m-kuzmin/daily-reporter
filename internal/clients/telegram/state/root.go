@@ -26,6 +26,7 @@ type RootHandler struct {
 	RootState
 }
 
+//nolint:cyclop
 func (s *RootHandler) PrivateTextMessage(message update.PrivateTextMessage) Transition {
 	cmd, isCmd := slashcmd.Parse(message.Text)
 	if !isCmd {
@@ -54,6 +55,19 @@ func (s *RootHandler) PrivateTextMessage(message update.PrivateTextMessage) Tran
 		}
 
 		return s.handleListProjects(message.Chat.ID, after)
+
+	case "setdefaultproject":
+		if len(cmd.Args) == 1 {
+			return s.saveDefaultProject(cmd.Args[0], message.Chat.ID)
+		}
+
+		if s.userData.GithubAPIKey.IsSome() {
+			return NewTransition(SetDefaultProjectState{RootState: s.RootState}, s.userData, []response.BotAction{
+				response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.SetDefaultProject),
+			})
+		}
+
+		return s.replyWithMessage(message.Chat.ID, s.responses.NoAPIKeyAdded)
 	}
 
 	return s.replyWithMessage(message.Chat.ID, s.responses.UnknownMessage)
@@ -77,6 +91,19 @@ func (s *RootHandler) GroupTextMessage(message update.GroupTextMessage) Transiti
 
 	case "addapikey", listProjectsCommand:
 		return s.replyWithMessage(message.Chat.ID, s.responses.PrivateCommandUsed)
+
+	case "setdefaultproject":
+		if len(cmd.Args) == 1 {
+			return s.saveDefaultProject(cmd.Args[0], message.Chat.ID)
+		}
+
+		if s.userData.GithubAPIKey.IsSome() {
+			return NewTransition(SetDefaultProjectState{RootState: s.RootState}, s.userData, []response.BotAction{
+				response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.SetDefaultProject),
+			})
+		}
+
+		return s.replyWithMessage(message.Chat.ID, s.responses.NoAPIKeyAdded)
 
 	default:
 		return s.Ignore()
@@ -132,8 +159,8 @@ func (s *RootHandler) handleListProjects(
 	projectList := fmt.Sprintf("Your projects (%d/page)", projectsOnPage)
 
 	for _, project := range projects {
-		projectList += fmt.Sprintf("\n\n<code>%s</code> <a href=%q><b>%s</b></a> (<a href=%q>%s</a>/%d)",
-			project.Cursor, project.URL, project.Title, project.CreatorURL, project.CreatorLogin, project.Number)
+		projectList += fmt.Sprintf("\n\n<code>%s</code> <a href=%q><b>%s</b></a> (<a href=%q>%s</a>/%d)\nID: <code>%s</code>",
+			project.Cursor, project.URL, project.Title, project.CreatorURL, project.CreatorLogin, project.Number, project.ID)
 	}
 
 	projectListWithPagination := response.NewSendMessage(response.ChatID(fmt.Sprintln(chatID)), projectList)
@@ -202,10 +229,8 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(projects []github.ProjectV2
 					}},
 				}),
 			})
-
 	default:
 		projectID, isSome := s.DefaultProject.Unwrap()
-
 		if !isSome {
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
 				response.NewSendMessage(
@@ -214,10 +239,36 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(projects []github.ProjectV2
 			})
 		}
 
+		defaultProject, err := github.NewClient(s.userData.GithubAPIKey.MustUnwrap()).ProjectV2ByID(ctx, string(projectID))
+		if err != nil {
+			return NewTransition(s.RootState, s.userData, []response.BotAction{
+				response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
+					github.GqlErrorStringOr("Github API error: %s", err, s.responses.GithubErrorGeneric)),
+			})
+		}
+
 		return NewTransition(NewDailyStatusStateForProject(s.RootState, projectID), s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), s.responses.DailyStatus),
+			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
+				fmt.Sprintf(s.responses.DailyStatus, defaultProject.Title)),
 		})
 	}
+}
+
+func (s *RootHandler) saveDefaultProject(id string, chatID update.ChatID) Transition {
+	token, isSome := s.userData.GithubAPIKey.Unwrap()
+	if !isSome {
+		return s.replyWithMessage(chatID, s.responses.NoAPIKeyAdded)
+	}
+
+	proj, err := github.NewClient(token).ProjectV2ByID(context.Background(), id)
+	if err != nil {
+		return s.replyWithMessage(chatID,
+			github.GqlErrorStringOr("Github API error: %s", err, s.responses.GithubErrorGeneric))
+	}
+
+	s.DefaultProject = option.Some[github.ProjectID](github.ProjectID(id))
+
+	return s.replyWithMessage(chatID, fmt.Sprintf("Saved %q as default project", proj.Title))
 }
 
 // replyWithMessage keeps the current state and user data but reponds with a single message into chat with text
@@ -227,7 +278,9 @@ func (s RootHandler) replyWithMessage(chatID update.ChatID, message string) Tran
 }
 
 type RootState struct {
-	DefaultProject              option.Option[github.ProjectID]
+	DefaultProject option.Option[github.ProjectID]
+	// If true and user has 1 project use that as default. When the user will have non-1 amount of projects has no
+	// effect
 	UseOnlyProjectNoSaveDefault bool
 }
 
@@ -247,6 +300,7 @@ type rootResponses struct {
 	AddAPIKey             string `template:"addApiKey"`
 	DailyStatus           string `template:"dailyStatus"`
 	DailyStatusOneProject string `template:"dailyStatusOneProject"`
+	SavedDefaultProject   string `template:"savedDefaultProject"`
 
 	// warnings
 
@@ -259,6 +313,8 @@ type rootResponses struct {
 	UnknownMessage       string `template:"unknownMessage"`
 	NoAPIKeyAdded        string `template:"noApiKeyAdded"`
 	UseSetDefaultProject string `template:"useSetDefaultProject"`
+	SetDefaultProject    string `template:"setDefaultProject"`
+	GithubErrorGeneric   string `template:"githubErrorGeneric"`
 }
 
 func newRootResponses(template template.Template) (rootResponses, error) {
