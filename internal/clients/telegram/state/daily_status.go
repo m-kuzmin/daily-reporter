@@ -1,8 +1,10 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
@@ -10,7 +12,10 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
+	"github.com/pkg/errors"
 )
+
+const dailyStatusItemLimit = 100
 
 type DailyStatusHandler struct {
 	responses *DailyStatusResponses
@@ -19,50 +24,11 @@ type DailyStatusHandler struct {
 }
 
 func (s *DailyStatusHandler) GroupTextMessage(message update.GroupTextMessage) Transition {
-	cmd, isCmd := slashcmd.Parse(message.Text)
-
-	if isCmd && strings.ToLower(cmd.Method) == "cancel" {
-		return NewTransition(s.RootState, s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)), "Canceled."),
-		})
-	}
-
-	switch s.Stage {
-	case ignoreMessagesDailyStatusStage:
-		break
-
-	case discoveryOfTheDayDailyStatusStage:
-		s.DailyStatusState.Stage = questionsAndBlockersDailyStatusStage
-
-		if isCmd && strings.ToLower(cmd.Method) == noneCommand {
-			s.DiscoveryOfTheDay = option.None[string]()
-		} else {
-			s.DiscoveryOfTheDay = option.Some(message.Text)
-		}
-
-		return NewTransition(s.DailyStatusState, s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)),
-				s.responses.QuestionsAndBlockers,
-			),
-		})
-
-	case questionsAndBlockersDailyStatusStage:
-		if isCmd && strings.ToLower(cmd.Method) == noneCommand {
-			s.QuestionsAndBlockers = option.None[string]()
-		} else {
-			s.QuestionsAndBlockers = option.Some(message.Text)
-		}
-
-		return NewTransition(s.RootState, s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)), s.generateReport()),
-		})
-	}
-
-	return s.Ignore()
+	return s.handleDailyStatus(message.Chat.ID, message.Text)
 }
 
-func (s *DailyStatusHandler) PrivateTextMessage(update.PrivateTextMessage) Transition {
-	return s.Ignore()
+func (s *DailyStatusHandler) PrivateTextMessage(message update.PrivateTextMessage) Transition {
+	return s.handleDailyStatus(message.Chat.ID, message.Text)
 }
 
 func (s *DailyStatusHandler) CallbackQuery(callback update.CallbackQuery) Transition {
@@ -91,6 +57,55 @@ func (s *DailyStatusHandler) Ignore() Transition {
 	return NewTransition(s.DailyStatusState, s.userData, response.Nothing())
 }
 
+//nolint:cyclop
+func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string) Transition {
+	cmd, isCmd := slashcmd.Parse(text)
+
+	if isCmd && strings.ToLower(cmd.Method) == cancelCommand {
+		return NewTransition(s.RootState, s.userData, []response.BotAction{
+			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), "Canceled."),
+		})
+	}
+
+	switch s.Stage {
+	case ignoreMessagesDailyStatusStage:
+		break
+
+	case discoveryOfTheDayDailyStatusStage:
+		s.DailyStatusState.Stage = questionsAndBlockersDailyStatusStage
+
+		if isCmd && strings.ToLower(cmd.Method) == noneCommand {
+			s.DiscoveryOfTheDay = option.None[string]()
+		} else {
+			s.DiscoveryOfTheDay = option.Some(text)
+		}
+
+		return NewTransition(s.DailyStatusState, s.userData, []response.BotAction{
+			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
+				s.responses.QuestionsAndBlockers,
+			),
+		})
+
+	case questionsAndBlockersDailyStatusStage:
+		if isCmd && strings.ToLower(cmd.Method) == noneCommand {
+			s.QuestionsAndBlockers = option.None[string]()
+		} else {
+			s.QuestionsAndBlockers = option.Some(text)
+		}
+
+		report, err := s.generateReport()
+		if err != nil {
+			report = github.GqlErrorStringOr("Github API error: %s", err, "Something went wrong while contacting GitHub.")
+		}
+
+		return NewTransition(s.RootState, s.userData, []response.BotAction{
+			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), report),
+		})
+	}
+
+	return s.Ignore()
+}
+
 /*
 Checks if the query is to save the default project. The retuned bool indicates if the query was about saving the default
 project. If returns false try other queries if present or return an ignore response.
@@ -116,8 +131,36 @@ func (s *DailyStatusHandler) handleCQSaveDefaultProject(data string, message upd
 	return Transition{}, false
 }
 
-func (s *DailyStatusHandler) generateReport() string {
-	return "Imagine this is your report"
+func (s *DailyStatusHandler) generateReport() (string, error) {
+	items, err := github.NewClient(s.userData.GithubAPIKey.UnwrapOr("")).ListViewerProjectV2Items(context.Background(),
+		s.UseProject, option.Some(dailyStatusItemLimit), option.None[github.ProjectCursor]())
+	if err != nil {
+		return "", errors.WithMessage(err, "while getting user's project v2 items")
+	}
+
+	const listSep = "\n• "
+
+	report := fmt.Sprintf(`#daily report %s:
+<b>Today I worked on</b>%s
+
+<b>Tomorrow I will work on</b>%s
+
+`, time.Now().Format("01.02"), listSep+strings.Join(items["Done"], listSep),
+		listSep+strings.Join(items["In Progress"], listSep))
+
+	if dod, isSome := s.DiscoveryOfTheDay.Unwrap(); isSome {
+		report += "<b>Discovery of the day</b>\n\n" + dod + "\n\n"
+	}
+
+	if blockers, isSome := s.QuestionsAndBlockers.Unwrap(); isSome {
+		report += "<b>Questions/Blockers</b>\n\n" + blockers + "\n\n"
+	}
+
+	if len(items["In Review"]) != 0 {
+		report += "<b>In review</b>" + listSep + strings.Join(items["In Review"], listSep)
+	}
+
+	return report, nil
 }
 
 type DailyStatusState struct {
@@ -172,6 +215,7 @@ func (s DailyStatusState) Handler(userData UserSharedData, responses *Responses)
 type DailyStatusResponses struct {
 	DiscoveryOfTheDay    string `template:"discoveryOfTheDay"`
 	QuestionsAndBlockers string `template:"questionsAndBlockers"`
+	GithubErrorGeneric   string `template:"githubErrorGeneric"`
 }
 
 func newDailyStatusResponse(template template.Template) (DailyStatusResponses, error) {
