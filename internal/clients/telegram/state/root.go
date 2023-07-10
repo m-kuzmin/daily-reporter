@@ -13,7 +13,11 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
 
-const listProjectsCommand = "listprojects"
+const (
+	listProjectsCommand = "listprojects"
+	noneCommand         = "none"
+	cancelCommand       = "cancel"
+)
 
 // RootHandler is the default state
 type RootHandler struct {

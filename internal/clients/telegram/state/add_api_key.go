@@ -23,10 +23,10 @@ func (s *AddAPIKeyHandler) PrivateTextMessage(message update.PrivateTextMessage)
 	cmd, isCmd := slashcmd.Parse(message.Text)
 	if isCmd {
 		switch strings.ToLower(cmd.Method) {
-		case "cancel":
+		case cancelCommand:
 			return s.returnToRootStateWithMessage(message.Chat.ID, s.responses.Cancel)
 
-		case "none":
+		case noneCommand:
 			s.userData.GithubAPIKey = option.None[string]()
 
 			return s.returnToRootStateWithMessage(message.Chat.ID, s.responses.Deleted)
@@ -108,6 +108,7 @@ type addAPIKeyResponses struct {
 
 	BadAPIKey           string `template:"badApiKey"`
 	KeySentInPublicChat string `template:"keySentInPublicChat"`
+	GithubErrorGeneric  string `template:"githubErrorGeneric"`
 }
 
 func newAddAPIKeyResponse(template template.Template) (addAPIKeyResponses, error) {

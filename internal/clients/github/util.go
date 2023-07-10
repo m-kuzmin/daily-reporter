@@ -37,3 +37,11 @@ func (t *authedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	return resp, nil
 }
+
+type EmptyResponseError struct {
+	Message string
+}
+
+func (e EmptyResponseError) Error() string {
+	return fmt.Sprintf("we expected something from GitHub, but it gave us nothing. details: %s", e.Message)
+}

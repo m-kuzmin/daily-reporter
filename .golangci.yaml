@@ -29,3 +29,15 @@ issues:
         - gomnd
         - goconst
         - varnamelen
+
+linters-settings:
+  varnamelen:
+    ignore-names:
+      - id
+    ignore-decls:
+      - is bool
+      - ok bool
+  gomnd:
+    ignored-functions:
+      - '\.Some$'
+      - '\.UnwrapOr$'

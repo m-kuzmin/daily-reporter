@@ -6,6 +6,7 @@ import (
 
 	graphql "github.com/m-kuzmin/daily-reporter/api/github"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
+	"github.com/pkg/errors"
 )
 
 func (c *Client) Login() (string, error) {
@@ -46,7 +47,6 @@ query ViewerProjectsV2($first: Int!, $after: String) {
   }
 }`
 
-	//nolint:gomnd
 	graphql, err := graphql.ViewerProjectsV2(context.Background(), c.client, first.UnwrapOr(10),
 		string(after.UnwrapOr("")))
 	if err != nil {
@@ -120,7 +120,6 @@ query GetProjectItems($id: ID!, $first: Int!, $after: String) {
 }
 `
 
-	//nolint:gomnd
 	data, err := graphql.GetProjectItems(ctx, c.client, string(projectID), first.UnwrapOr(100),
 		string(after.UnwrapOr("")))
 	if err != nil {
@@ -156,7 +155,6 @@ query GetProjectItems($id: ID!, $first: Int!, $after: String) {
 		}
 
 		// The name of the column in table view. It is stored as a single select value.
-		//nolint:varnamelen
 		statusGql, is := node.Status.(*graphql.GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemStatusProjectV2ItemFieldSingleSelectValue)
 		if !is {
 			continue // Dont know which column the item is in
@@ -179,4 +177,44 @@ query GetProjectItems($id: ID!, $first: Int!, $after: String) {
 	}
 
 	return itemsByStatus, nil
+}
+
+func (c Client) ProjectV2ByID(ctx context.Context, id string) (ProjectV2, error) {
+	_ = `# @genqlient
+query ProjectV2ByID($id: ID!) {
+  node(id: $id) {
+    ... on ProjectV2 {
+      id
+      title
+      number
+      url
+      creator {
+        login
+        url
+        }
+    }
+  }
+}`
+
+	resp, err := graphql.ProjectV2ByID(ctx, c.client, id)
+	if err != nil {
+		return ProjectV2{}, errors.WithMessage(err, "while requesting ProjectV2 by ID")
+	}
+
+	project, is := resp.Node.(*graphql.ProjectV2ByIDNodeProjectV2)
+	if !is {
+		return ProjectV2{}, EmptyResponseError{
+			Message: "while requesting projectv2 by ID the `node ... on TYPE` returned nil",
+		}
+	}
+
+	return ProjectV2{
+		Cursor:       "",
+		Title:        project.Title,
+		ID:           ProjectID(project.Id),
+		URL:          project.Url,
+		CreatorLogin: project.Creator.GetLogin(),
+		CreatorURL:   project.GetCreator().GetUrl(),
+		Number:       project.Number,
+	}, nil
 }

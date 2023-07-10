@@ -34,7 +34,7 @@ func (s *DailyStatusHandler) GroupTextMessage(message update.GroupTextMessage) T
 	case discoveryOfTheDayDailyStatusStage:
 		s.DailyStatusState.Stage = questionsAndBlockersDailyStatusStage
 
-		if isCmd && strings.ToLower(cmd.Method) == "none" {
+		if isCmd && strings.ToLower(cmd.Method) == noneCommand {
 			s.DiscoveryOfTheDay = option.None[string]()
 		} else {
 			s.DiscoveryOfTheDay = option.Some(message.Text)
@@ -47,7 +47,7 @@ func (s *DailyStatusHandler) GroupTextMessage(message update.GroupTextMessage) T
 		})
 
 	case questionsAndBlockersDailyStatusStage:
-		if isCmd && strings.ToLower(cmd.Method) == "none" {
+		if isCmd && strings.ToLower(cmd.Method) == noneCommand {
 			s.QuestionsAndBlockers = option.None[string]()
 		} else {
 			s.QuestionsAndBlockers = option.Some(message.Text)
