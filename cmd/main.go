@@ -12,6 +12,9 @@ import (
 
 func main() {
 	conf := mustNewConfig()
+	if conf.Telegram.Token == "" {
+		log.Fatal("No telegram token in config.toml, ")
+	}
 
 	templ, err := template.LoadYAMLTemplate(conf.Telegram.Template)
 	if err != nil {

@@ -18,3 +18,10 @@ severity:
     - linters:
       - nlreturn
       severity: info
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - goconst
+        - varnamelen

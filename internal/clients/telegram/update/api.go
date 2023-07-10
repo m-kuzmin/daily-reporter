@@ -17,14 +17,24 @@ type UpdateID int64
 /*
 Returns `Some[string]` that refers to a conversation the user has with a bot. `None` if the conversation has no state.
 */
-func (u Update) StateID() option.Option[string] {
+func (u Update) StateID() (string, bool) {
 	if message, isSome := u.Message.Unwrap(); isSome {
 		if from, isSome := message.From.Unwrap(); isSome {
-			return option.Some(fmt.Sprintf("%d:%d", message.Chat.ID, from.ID))
+			return fmt.Sprintf("%d:%d", message.Chat.ID, from.ID), true
 		}
 	}
 
-	return option.None[string]()
+	return "", false
+}
+
+func (u Update) UserID() (UserID, bool) {
+	if message, isSome := u.Message.Unwrap(); isSome {
+		if from, isSome := message.From.Unwrap(); isSome {
+			return from.ID, true
+		}
+	}
+
+	return UserID(0), false
 }
 
 type Message struct {
