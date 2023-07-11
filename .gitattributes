@@ -6,6 +6,9 @@ docs/** -diff linguist-documentation
 
 **/generated.go -diff linguist-generated
 **/schema.graphql -diff linguist-generated
+**/genqlient.yaml -diff linguist-generated
+
+**/.golangci.yaml -diff liguist-generated
 
 *.png -diff
 *.jpg -diff
