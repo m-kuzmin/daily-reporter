@@ -130,17 +130,17 @@ type AnswerCallbackQuery struct {
 	ShowAlert bool                  `json:"show_alert"`
 }
 
-func CallbackQueryAnswerNotification(cq update.CallbackQuery, text string) AnswerCallbackQuery {
+func CallbackQueryAnswerNotification(id update.CallbackQueryID, text string) AnswerCallbackQuery {
 	return AnswerCallbackQuery{
-		ID:        string(cq.ID),
+		ID:        string(id),
 		Text:      option.Some(text),
 		ShowAlert: false,
 	}
 }
 
-func CallbackQueryAnswerAlert(id string, text string) AnswerCallbackQuery {
+func CallbackQueryAnswerAlert(id update.CallbackQueryID, text string) AnswerCallbackQuery {
 	return AnswerCallbackQuery{
-		ID:        id,
+		ID:        string(id),
 		Text:      option.Some(text),
 		ShowAlert: true,
 	}

@@ -33,7 +33,7 @@ func (s *DailyStatusHandler) PrivateTextMessage(message update.PrivateTextMessag
 
 func (s *DailyStatusHandler) CallbackQuery(callback update.CallbackQuery) Transition {
 	ignoreWithAlert := NewTransition(s.RootState, s.userData, []response.BotAction{
-		response.CallbackQueryAnswerNotification(callback, "This button doesnt work."),
+		response.CallbackQueryAnswerNotification(callback.ID, "This button doesnt work."),
 	})
 
 	data, isSome := callback.Data.Unwrap()
