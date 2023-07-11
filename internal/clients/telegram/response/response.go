@@ -23,7 +23,8 @@ type APIRequester struct {
 	BasePath string
 }
 
-func (r APIRequester) Do(ctx context.Context, endpoint string, body json.RawMessage) (json.RawMessage, error) {
+func (r APIRequester) DoJSONEncoded(ctx context.Context, endpoint string, body json.RawMessage,
+) (json.RawMessage, error) {
 	url := url.URL{
 		Scheme: r.Scheme,
 		Host:   r.Host,

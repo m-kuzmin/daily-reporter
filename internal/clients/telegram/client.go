@@ -141,7 +141,7 @@ func (c *Client) Start(threads uint) <-chan error {
 
 // GetMe returns a user that represents this bot
 func (c *Client) GetMe(ctx context.Context) (update.User, error) {
-	resp, err := c.requester.Do(ctx, "getMe", json.RawMessage{})
+	resp, err := c.requester.DoJSONEncoded(ctx, "getMe", json.RawMessage{})
 	if err != nil {
 		return update.User{}, fmt.Errorf("while requesting /GetMe: %w", err)
 	}
@@ -427,7 +427,7 @@ func (c *Client) processUpdates(ctx context.Context, updateWithStateCh <-chan up
 				continue
 			}
 
-			_, err = c.requester.Do(ctx, endpoint, body)
+			_, err = c.requester.DoJSONEncoded(ctx, endpoint, body)
 			if err != nil {
 				log.Printf("Error while performing /%s: %s\n  Details:\n    %s", endpoint, err, body)
 			}
