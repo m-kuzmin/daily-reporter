@@ -107,10 +107,7 @@ func (c *Client) Start(threads uint) <-chan error {
 	c.stopProcessing = cancel
 
 	if threads == 0 {
-		//nolint:goerr113
-		c.fail(fmt.Errorf(
-			"should never start a telegram bot with less than 1 processor threads. Was asked to use %d threads",
-			threads))
+		c.fail(ZeroThreadsError{})
 
 		return errCh
 	}
