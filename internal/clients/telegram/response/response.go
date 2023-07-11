@@ -25,7 +25,7 @@ type APIRequester struct {
 
 func (r APIRequester) Do(ctx context.Context, endpoint string, body json.RawMessage) (json.RawMessage, error) {
 	url := url.URL{
-		Scheme: "https",
+		Scheme: r.Scheme,
 		Host:   r.Host,
 		Path:   path.Join(r.BasePath, endpoint),
 	}
@@ -76,7 +76,7 @@ func (r APIRequester) Do(ctx context.Context, endpoint string, body json.RawMess
 
 func (r APIRequester) DoURLEncoded(ctx context.Context, endpoint string, params url.Values) (json.RawMessage, error) {
 	url := url.URL{
-		Scheme:   "https",
+		Scheme:   r.Scheme,
 		Host:     r.Host,
 		Path:     path.Join(r.BasePath, endpoint),
 		RawQuery: params.Encode(),
