@@ -95,9 +95,10 @@ type InlineKeyboardButton struct {
 	// Button label
 	Text string `json:"text"`
 
-	// Pressing this button makes the user type "@Bot (string)" in the current chat, or just the bot's username.
+	// Makes the user type "@Bot (string)" in the current chat, or just the bot's username is string==""
 	SwitchInlineQueryCurrentChat option.Option[string] `json:"switch_inline_query_current_chat"`
-	CallbackData                 option.Option[string] `json:"callback_data"`
+	// When pressed sends a CallbackQuery that is handled in state.CallbackQuery
+	CallbackData option.Option[string] `json:"callback_data"`
 }
 
 func InlineButtonSwitchQueryCurrentChat(text, query string) InlineKeyboardButton {
