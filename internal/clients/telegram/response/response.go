@@ -46,13 +46,11 @@ func (r APIRequester) DoJSONEncoded(ctx context.Context, endpoint string, body j
 	}
 
 	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		resp.Body.Close()
+	defer resp.Body.Close()
 
+	if err != nil {
 		return json.RawMessage{}, fmt.Errorf("could not read response body %w", err)
 	}
-
-	resp.Body.Close()
 
 	var data struct {
 		Ok bool `json:"ok"`
