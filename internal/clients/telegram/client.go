@@ -387,7 +387,7 @@ func (c *Client) borrowUserData(handle update.UserID) *borrowonce.Future[state.U
 	}
 
 	// Implementation of borrownonce.Store guarantees that after a value is Set() it is available to borrow
-	panic("conversation store did not lend a value after it was set explicitly")
+	panic("user shared data store did not lend a value after it was set explicitly")
 }
 
 /*
