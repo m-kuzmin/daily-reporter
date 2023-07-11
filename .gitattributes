@@ -1,6 +1,11 @@
 go.mod -diff
-go.sum -diff
+go.sum -diff linguist-generated
 
-assets/** -diff
+assets/** -diff linguist-generated
+docs/** -diff linguist-documentation
 
-**/generated.go -diff
+**/generated.go -diff linguist-generated
+**/schema.graphql -diff linguist-generated
+
+*.png -diff
+*.jpg -diff
