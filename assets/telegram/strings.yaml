@@ -53,38 +53,10 @@ templates:
 
     dailyStatus:
       - |
-        I will generate a report for <b><u>%%q</u></b>. First I need to know what's your discovery of the day?
+        I will generate a report for <b><u>%%s</u></b>. First I need to know what's your discovery of the day?
 
         /none: Omit "Discovery of the day" from the report.
         /cancel: Cancel <code>/dailyStatus</code>
-
-    dailyStatusOneProject:
-      - |
-        I can only see one project: <code>%%s</code> <a href=%%q>%%s</a>.
-        Do you want me to use it as default?
-
-        /cancel: Cancel <code>/dailyStatus</code>
-
-    userHasZeroProjects:
-      - |
-        You seem to have 0 projects in your profile (and yes your API key works)!
-        Either that or your API key doesnt have read:project permissions.
-
-        Try adding a project or readding your API key using /addApiKey.
-
-    savedDefaultProject: &root_savedDefaultProject ["Saved %%q as the default project"]
-
-    lastProjectsPage: ["No more pages"]
-
-    privateCommandUsed: ["This command only works in private (direct) messages for your privacy and security."]
-
-    unknownMessage: ["Sorry, I don't understand. Try /help maybe?"]
-
-    noApiKeyAdded: &root_noApiKeyAdded ["You have not added a GitHub API key, so I can't see your projects. Please use /addApiKey"]
-
-    useSetDefaultProject: ["You have too many projects. Use /setDefaultProject to define a default for this chat."]
-
-    githubErrorGeneric: &root_githubErrorGeneric ["Something went wrong while contacting GitHub. Is your API key still valid?"]
 
     setDefaultProject:
       - |
@@ -95,6 +67,28 @@ templates:
 
         /none: Delete the currently saved default project
         /cancel: Quit this menu
+
+
+    savedDefaultProject: &root_savedDefaultProject ["Saved %%q as the default project"]
+
+    useSetDefaultProject: &root_useSetDefaultProject ["You have too many projects. Use /setDefaultProject to define a default for this chat."]
+
+    lastProjectsPage: ["No more pages"]
+
+    privateCommandUsed: ["This command only works in private (direct) messages for your privacy and security."]
+
+    unknownMessage: ["Sorry, I don't understand. Try /help maybe?"]
+
+    noApiKeyAdded: &root_noApiKeyAdded ["You have not added a GitHub API key, so I can't see your projects. Please use /addApiKey"]
+
+    userHasZeroProjects:
+      - |
+        You seem to have 0 projects in your profile (and yes your API key works)!
+        Either that or your API key doesnt have read:project permissions.
+
+        Try adding a project or readding your API key using /addApiKey.
+
+    githubErrorGeneric: &root_githubErrorGeneric ["Something went wrong while contacting GitHub. Is your API key still valid?"]
 
   addApiKey:
     success:
@@ -131,7 +125,12 @@ templates:
         /none: Omit "Questions/Blockers" from the report.
         /cancel: Cancel <code>/dailyStatus</code>
 
+    noApiKeyAdded: *root_noApiKeyAdded
+
     githubErrorGeneric: ["%s", githubErrorGeneric]
+
+    useSetDefaultProject: *root_useSetDefaultProject
+
   setDefaultProject:
     success: *root_savedDefaultProject
 

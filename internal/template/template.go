@@ -94,6 +94,40 @@ func (t Template) Get(group string) (Group, error) {
 	return Group{name: group, wrapped: &t}, nil
 }
 
+func (t Template) Populate(typed interface{}) error {
+	rv := reflect.ValueOf(typed)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return &InvalidTypeError{Type: reflect.TypeOf(typed).Name()}
+	}
+
+	valueOf := rv.Elem()
+	typeOf := reflect.TypeOf(typed).Elem()
+
+	for i := 0; i < valueOf.NumField(); i++ {
+		fieldValue := valueOf.Field(i)
+		fieldType := typeOf.Field(i)
+
+		groupName := fieldType.Tag.Get("template")
+		if groupName == "" {
+			return GroupNotTaggedError{
+				Struct: typeOf.Name(),
+				Field:  fieldType.Name,
+			}
+		}
+
+		group, err := t.Get(groupName)
+		if err != nil {
+			return err
+		}
+
+		if err = group.populateReflect(fieldValue, fieldType.Type); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Group holds a name of the group name passed into Template.Get() and a pointer to the template
 type Group struct {
 	name    string
@@ -146,6 +180,10 @@ func (g Group) Populate(typed interface{}) error {
 	valueOf := rv.Elem()
 	typeOf := reflect.TypeOf(typed).Elem()
 
+	return g.populateReflect(valueOf, typeOf)
+}
+
+func (g Group) populateReflect(valueOf reflect.Value, typeOf reflect.Type) error {
 	for i := 0; i < valueOf.NumField(); i++ {
 		fieldValue := valueOf.Field(i)
 		fieldType := typeOf.Field(i)
@@ -192,6 +230,15 @@ type FieldNotTaggedError struct {
 
 func (e FieldNotTaggedError) Error() string {
 	return fmt.Sprintf("field %s in template struct %s is not tagged with \"template\".", e.Field, e.Struct)
+}
+
+type GroupNotTaggedError struct {
+	Struct string
+	Field  string
+}
+
+func (e GroupNotTaggedError) Error() string {
+	return fmt.Sprintf("group %s in template struct %s is not tagged with \"template\".", e.Field, e.Struct)
 }
 
 type NoTemplateStringError struct {

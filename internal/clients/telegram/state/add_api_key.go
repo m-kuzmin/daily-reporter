@@ -8,7 +8,6 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
-	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
@@ -44,8 +43,9 @@ func (s *AddAPIKeyHandler) PrivateTextMessage(message update.PrivateTextMessage)
 
 	s.userData.GithubAPIKey = option.Some(message.Text)
 
-	return NewTransition(s.RootState, s.userData, []response.BotAction{response.NewSendMessage(response.ChatID(
-		fmt.Sprint(message.Chat.ID)), fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview()})
+	return NewTransition(s.RootState, s.userData, []response.BotAction{
+		response.NewSendMessage(message.Chat.ID, fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview(),
+	})
 }
 
 func (s *AddAPIKeyHandler) GroupTextMessage(message update.GroupTextMessage) Transition {
@@ -72,7 +72,7 @@ returnToRootStateWithMessage returns to RootState with current userdata and send
 */
 func (s AddAPIKeyHandler) returnToRootStateWithMessage(chatID update.ChatID, message string) Transition {
 	return NewTransition(s.RootState, s.userData, []response.BotAction{
-		response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), message),
+		response.NewSendMessage(chatID, message),
 	})
 }
 
@@ -82,7 +82,7 @@ sameStateWithMessage keeps the current state with current userdata and sends one
 */
 func (s AddAPIKeyHandler) sameStateWithMessage(chatID update.ChatID, message string) Transition {
 	return NewTransition(s.AddAPIKeyState, s.userData, []response.BotAction{
-		response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), message),
+		response.NewSendMessage(chatID, message),
 	})
 }
 
@@ -109,20 +109,4 @@ type addAPIKeyResponses struct {
 	BadAPIKey           string `template:"badApiKey"`
 	KeySentInPublicChat string `template:"keySentInPublicChat"`
 	GithubErrorGeneric  string `template:"githubErrorGeneric"`
-}
-
-func newAddAPIKeyResponse(template template.Template) (addAPIKeyResponses, error) {
-	group, err := template.Get("addApiKey")
-	if err != nil {
-		return addAPIKeyResponses{}, fmt.Errorf(`while getting "addApiKey" group from template: %w`, err)
-	}
-
-	resp := addAPIKeyResponses{}
-
-	err = group.Populate(&resp)
-	if err != nil {
-		return addAPIKeyResponses{}, fmt.Errorf(`while populating addApiKeyResponses from template: %w`, err)
-	}
-
-	return resp, nil
 }

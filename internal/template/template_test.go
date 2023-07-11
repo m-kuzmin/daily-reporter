@@ -8,19 +8,17 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/template"
 )
 
-const yaml = `---
+func TestGroupGet(t *testing.T) {
+	t.Parallel()
+
+	const yaml = `---
 vars:
   foo: Foo
 templates:
   foo:
     bar: ["%s", foo]
-  percent:
-    string: ["%%s"]
 ...
 `
-
-func TestGroupGet(t *testing.T) {
-	t.Parallel()
 
 	templ, err := template.NewTemplate([]byte(yaml))
 	if err != nil {
@@ -44,6 +42,13 @@ func TestGroupGet(t *testing.T) {
 
 func TestPercentPercent(t *testing.T) {
 	t.Parallel()
+
+	const yaml = `---
+templates:
+  percent:
+    string: ["%%s"]
+...
+`
 
 	templ, err := template.NewTemplate([]byte(yaml))
 	if err != nil {
@@ -69,8 +74,14 @@ func TestPercentPercent(t *testing.T) {
 	}
 }
 
-func TestPopulateNilPtr(t *testing.T) {
+func TestPopulateGroupNilPtr(t *testing.T) {
 	t.Parallel()
+
+	const yaml = `---
+templates:
+  foo:
+...
+`
 
 	templ, err := template.NewTemplate([]byte(yaml))
 	if err != nil {
@@ -90,6 +101,67 @@ func TestPopulateNilPtr(t *testing.T) {
 	)
 
 	err = group.Populate(sPtr)
+	if errors.As(err, &errType) {
+		return
+	}
+
+	t.Errorf("Expected InvalidTypeError for nil pointer, but got: %v", err)
+}
+
+func TestTemplatePopulate(t *testing.T) {
+	t.Parallel()
+
+	const yaml = `---
+templates:
+  foo:
+    bar: [foobar]
+...`
+
+	var repsonses struct {
+		Foo struct {
+			Bar string `template:"bar"`
+		} `template:"foo"`
+	}
+
+	templ, err := template.NewTemplate([]byte(yaml))
+	if err != nil {
+		t.Fatalf("While parsing template YAML: %s", err)
+	}
+
+	err = templ.Populate(&repsonses)
+	if err != nil {
+		t.Fatalf("While populating responses: %s", err)
+	}
+
+	if repsonses.Foo.Bar != "foobar" {
+		t.Fatalf(`responses.Foo.Bar != "foobar" // but instead: %q`, repsonses.Foo.Bar)
+	}
+}
+
+func TestPopulateTemplateNilPtr(t *testing.T) {
+	t.Parallel()
+
+	const yaml = `---
+templates:
+  foo:
+    bar: [foobar]
+...`
+
+	templ, err := template.NewTemplate([]byte(yaml))
+	if err != nil {
+		t.Errorf("While parsing yaml template: %s", err)
+	}
+
+	var (
+		parsed *struct { // nil pointer
+			Foo struct {
+				Bar string `template:"bar"`
+			} `template:"foo"`
+		}
+		errType *template.InvalidTypeError
+	)
+
+	err = templ.Populate(parsed)
 	if errors.As(err, &errType) {
 		return
 	}

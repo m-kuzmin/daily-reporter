@@ -8,7 +8,6 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
-	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
@@ -41,14 +40,13 @@ func (s *SetDefaultProjectHandler) saveDefaultProject(ctx context.Context, chatI
 		switch strings.ToLower(cmd.Method) {
 		case noneCommand:
 			s.DefaultProject = option.None[github.ProjectID]()
-			s.UseOnlyProjectNoSaveDefault = false
 
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
-				response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), "Default project reset for this chat."),
+				response.NewSendMessage(chatID, "Default project reset for this chat."),
 			})
 		case cancelCommand:
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
-				response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), "Canceled."),
+				response.NewSendMessage(chatID, "Canceled."),
 			})
 		}
 	}
@@ -58,23 +56,22 @@ func (s *SetDefaultProjectHandler) saveDefaultProject(ctx context.Context, chatI
 		return s.replyWithMessage(chatID, s.responses.NoAPIKeyAdded)
 	}
 
-	project, err := github.NewClient(token).ProjectV2ByID(ctx, text)
+	project, err := github.NewClient(token).ProjectV2ByID(ctx, github.ProjectID(text))
 	if err != nil {
 		return s.replyWithMessage(chatID,
 			github.GqlErrorStringOr("Github API error: %s", err, s.responses.GithubErrorGeneric))
 	}
 
 	s.DefaultProject = option.Some[github.ProjectID](github.ProjectID(text))
-	s.UseOnlyProjectNoSaveDefault = false
 
 	return NewTransition(s.RootState, s.userData, []response.BotAction{
-		response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), fmt.Sprintf(s.responses.Success, project.Title)),
+		response.NewSendMessage(chatID, fmt.Sprintf(s.responses.Success, project.Title)),
 	})
 }
 
 func (s SetDefaultProjectHandler) replyWithMessage(chatID update.ChatID, message string) Transition {
 	return NewTransition(s.SetDefaultProjectState, s.userData, []response.BotAction{
-		response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), message),
+		response.NewSendMessage(chatID, message),
 	})
 }
 
@@ -94,20 +91,4 @@ type SetDefaultProjectResponses struct {
 	Success            string `template:"success"`
 	GithubErrorGeneric string `template:"githubErrorGeneric"`
 	NoAPIKeyAdded      string `template:"noApiKeyAdded"`
-}
-
-func NewSetDefaultProjectResponses(template template.Template) (SetDefaultProjectResponses, error) {
-	group, err := template.Get("setDefaultProject")
-	if err != nil {
-		return SetDefaultProjectResponses{}, fmt.Errorf(`while getting "setDefaultProject" group from template: %w`, err)
-	}
-
-	resp := SetDefaultProjectResponses{}
-
-	err = group.Populate(&resp)
-	if err != nil {
-		return SetDefaultProjectResponses{}, fmt.Errorf(`while populating SetDefaultProjectResponses from template: %w`, err)
-	}
-
-	return resp, nil
 }

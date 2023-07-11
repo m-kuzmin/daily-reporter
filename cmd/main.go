@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram"
+	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/state"
 	"github.com/m-kuzmin/daily-reporter/internal/template"
 )
 
@@ -21,7 +22,12 @@ func main() {
 		log.Fatalf("while loading yaml template from %s: %s", conf.Telegram.Template, err)
 	}
 
-	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token, templ)
+	var responses state.Responses
+	if err = templ.Populate(&responses); err != nil {
+		log.Fatalf("While populating state.Responses: %s", err)
+	}
+
+	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token, responses)
 
 	fail := client.Start(conf.Telegram.Threads)
 
