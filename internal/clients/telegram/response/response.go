@@ -24,10 +24,10 @@ type SendMessage struct {
 	ReplyMarkup           ReplyMarkupper        `json:"reply_markup,omitempty"`
 }
 
-// NewSendMessage creates a new NewSendMessage and sets the default parse mode to "html" and disables web previews.
-func NewSendMessage(chatID ChatID, text string) SendMessage {
+// NewSendMessage creates SendMessage and sets the default parse mode to "html" and disables web previews.
+func NewSendMessage(chatID update.ChatID, text string) SendMessage {
 	return SendMessage{
-		ChatID:                chatID,
+		ChatID:                ChatID(fmt.Sprint(chatID)),
 		Text:                  text,
 		ParseMode:             option.Some("html"),
 		DisableWebpagePreview: true,

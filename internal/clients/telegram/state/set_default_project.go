@@ -44,11 +44,11 @@ func (s *SetDefaultProjectHandler) saveDefaultProject(ctx context.Context, chatI
 			s.UseOnlyProjectNoSaveDefault = false
 
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
-				response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), "Default project reset for this chat."),
+				response.NewSendMessage(chatID, "Default project reset for this chat."),
 			})
 		case cancelCommand:
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
-				response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), "Canceled."),
+				response.NewSendMessage(chatID, "Canceled."),
 			})
 		}
 	}
@@ -68,13 +68,13 @@ func (s *SetDefaultProjectHandler) saveDefaultProject(ctx context.Context, chatI
 	s.UseOnlyProjectNoSaveDefault = false
 
 	return NewTransition(s.RootState, s.userData, []response.BotAction{
-		response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), fmt.Sprintf(s.responses.Success, project.Title)),
+		response.NewSendMessage(chatID, fmt.Sprintf(s.responses.Success, project.Title)),
 	})
 }
 
 func (s SetDefaultProjectHandler) replyWithMessage(chatID update.ChatID, message string) Transition {
 	return NewTransition(s.SetDefaultProjectState, s.userData, []response.BotAction{
-		response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), message),
+		response.NewSendMessage(chatID, message),
 	})
 }
 

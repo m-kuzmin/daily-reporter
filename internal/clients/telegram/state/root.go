@@ -46,7 +46,7 @@ func (s *RootHandler) PrivateTextMessage(message update.PrivateTextMessage) Tran
 
 	case "addapikey":
 		return NewTransition(AddAPIKeyState{RootState: s.RootState}, s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.AddAPIKey),
+			response.NewSendMessage(message.Chat.ID, s.responses.AddAPIKey),
 		})
 
 	case listProjectsCommand:
@@ -64,7 +64,7 @@ func (s *RootHandler) PrivateTextMessage(message update.PrivateTextMessage) Tran
 
 		if s.userData.GithubAPIKey.IsSome() {
 			return NewTransition(SetDefaultProjectState{RootState: s.RootState}, s.userData, []response.BotAction{
-				response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.SetDefaultProject),
+				response.NewSendMessage(message.Chat.ID, s.responses.SetDefaultProject),
 			})
 		}
 
@@ -100,7 +100,7 @@ func (s *RootHandler) GroupTextMessage(message update.GroupTextMessage) Transiti
 
 		if s.userData.GithubAPIKey.IsSome() {
 			return NewTransition(SetDefaultProjectState{RootState: s.RootState}, s.userData, []response.BotAction{
-				response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.SetDefaultProject),
+				response.NewSendMessage(message.Chat.ID, s.responses.SetDefaultProject),
 			})
 		}
 
@@ -161,7 +161,7 @@ func (s *RootHandler) handleListProjects(
 			project.Cursor, project.URL, project.Title, project.CreatorURL, project.CreatorLogin, project.Number, project.ID)
 	}
 
-	projectListWithPagination := response.NewSendMessage(response.ChatID(fmt.Sprintln(chatID)), projectList)
+	projectListWithPagination := response.NewSendMessage(chatID, projectList)
 
 	if len(projects) == projectsOnPage {
 		projectListWithPagination = projectListWithPagination.SetReplyMarkup([][]response.InlineKeyboardButton{{
@@ -177,9 +177,9 @@ func (s *RootHandler) handleDailyStatus(chatID update.ChatID) Transition {
 	key, isSome := s.userData.GithubAPIKey.Unwrap()
 
 	if !isSome {
-		return NewTransition(s.RootState, s.userData, []response.BotAction{response.NewSendMessage(
-			response.ChatID(fmt.Sprint(chatID)), s.responses.NoAPIKeyAdded,
-		)})
+		return NewTransition(s.RootState, s.userData, []response.BotAction{
+			response.NewSendMessage(chatID, s.responses.NoAPIKeyAdded),
+		})
 	}
 
 	const moreThanOne = 2
@@ -201,23 +201,22 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, projec
 	case 0:
 		return NewTransition(s.RootState, s.userData, []response.BotAction{
 			response.NewSendMessage(
-				response.ChatID(fmt.Sprint(chatID)), s.responses.UserHasZeroProjects,
+				chatID, s.responses.UserHasZeroProjects,
 			),
 		})
 	case 1:
 		if s.UseOnlyProjectNoSaveDefault {
 			return NewTransition(NewDailyStatusStateForProject(s.RootState, projects[0].ID), s.userData,
 				[]response.BotAction{
-					response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), s.responses.DailyStatus),
+					response.NewSendMessage(chatID, s.responses.DailyStatus),
 				})
 		}
 
 		return NewTransition(NewDailyStatusStateAskSaveDefault(s.RootState, projects[0].ID), s.userData,
 			[]response.BotAction{
-				response.NewSendMessage(
-					response.ChatID(fmt.Sprint(chatID)), fmt.Sprintf(s.responses.DailyStatusOneProject,
-						projects[0].Cursor, projects[0].URL, projects[0].Title,
-					)).DisableWebPreview().SetReplyMarkup([][]response.InlineKeyboardButton{
+				response.NewSendMessage(chatID, fmt.Sprintf(s.responses.DailyStatusOneProject,
+					projects[0].Cursor, projects[0].URL, projects[0].Title,
+				)).DisableWebPreview().SetReplyMarkup([][]response.InlineKeyboardButton{
 					{response.InlineKeyboardButton{
 						Text:         "Yes, set this project as default",
 						CallbackData: option.Some(cqDailyStatusSetOnlyProjectAsDefault),
@@ -233,7 +232,7 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, projec
 		if !isSome {
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
 				response.NewSendMessage(
-					response.ChatID(fmt.Sprint(chatID)), s.responses.UseSetDefaultProject,
+					chatID, s.responses.UseSetDefaultProject,
 				),
 			})
 		}
@@ -241,14 +240,13 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, projec
 		defaultProject, err := github.NewClient(s.userData.GithubAPIKey.MustUnwrap()).ProjectV2ByID(ctx, string(projectID))
 		if err != nil {
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
-				response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
+				response.NewSendMessage(chatID,
 					github.GqlErrorStringOr("Github API error: %s", err, s.responses.GithubErrorGeneric)),
 			})
 		}
 
 		return NewTransition(NewDailyStatusStateForProject(s.RootState, projectID), s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
-				fmt.Sprintf(s.responses.DailyStatus, defaultProject.Title)),
+			response.NewSendMessage(chatID, fmt.Sprintf(s.responses.DailyStatus, defaultProject.Title)),
 		})
 	}
 }
@@ -273,7 +271,7 @@ func (s *RootHandler) saveDefaultProject(id string, chatID update.ChatID) Transi
 // replyWithMessage keeps the current state and user data but reponds with a single message into chat with text
 func (s RootHandler) replyWithMessage(chatID update.ChatID, message string) Transition {
 	return NewTransition(s.RootState, s.userData,
-		[]response.BotAction{response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), message)})
+		[]response.BotAction{response.NewSendMessage(chatID, message)})
 }
 
 type RootState struct {

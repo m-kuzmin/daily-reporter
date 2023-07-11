@@ -63,7 +63,7 @@ func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string
 
 	if isCmd && strings.ToLower(cmd.Method) == cancelCommand {
 		return NewTransition(s.RootState, s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), "Canceled."),
+			response.NewSendMessage(chatID, "Canceled."),
 		})
 	}
 
@@ -81,7 +81,7 @@ func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string
 		}
 
 		return NewTransition(s.DailyStatusState, s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)),
+			response.NewSendMessage(chatID,
 				s.responses.QuestionsAndBlockers,
 			),
 		})
@@ -99,7 +99,7 @@ func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string
 		}
 
 		return NewTransition(s.RootState, s.userData, []response.BotAction{
-			response.NewSendMessage(response.ChatID(fmt.Sprint(chatID)), report),
+			response.NewSendMessage(chatID, report),
 		})
 	}
 
@@ -113,7 +113,7 @@ project. If returns false try other queries if present or return an ignore respo
 func (s *DailyStatusHandler) handleCQSaveDefaultProject(data string, message update.Message) (Transition, bool) {
 	askDiscoveryOfTheDay := []response.BotAction{
 		response.RemoveReplyMarkup(message),
-		response.NewSendMessage(response.ChatID(fmt.Sprint(message.Chat.ID)), s.responses.DiscoveryOfTheDay),
+		response.NewSendMessage(message.Chat.ID, s.responses.DiscoveryOfTheDay),
 	}
 
 	if data == cqDailyStatusAskDefaultProjectEveryTime {
