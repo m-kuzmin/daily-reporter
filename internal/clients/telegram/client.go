@@ -14,7 +14,6 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/state"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
-	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util"
 	"github.com/m-kuzmin/daily-reporter/internal/util/borrowonce"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
@@ -59,7 +58,7 @@ type Client struct {
 	conversationStateStore borrowonce.Storage[string, state.State]
 	userSharedDataStore    borrowonce.Storage[update.UserID, state.UserSharedData]
 
-	template template.Template
+	responses state.Responses
 
 	bot update.User
 }
@@ -73,7 +72,7 @@ Creates a new client.
 
 Creating the client is not enough, you have to `Start()` it.
 */
-func NewClient(host, token string, template template.Template) Client {
+func NewClient(host, token string, responses state.Responses) Client {
 	return Client{
 		requester: response.APIRequester{
 			Client:   http.Client{},
@@ -81,7 +80,7 @@ func NewClient(host, token string, template template.Template) Client {
 			Host:     host,
 			BasePath: "bot" + token,
 		},
-		template: template,
+		responses: responses,
 	}
 }
 
@@ -407,16 +406,8 @@ func (c *Client) processUpdates(ctx context.Context, updateWithStateCh <-chan up
 		}
 	}()
 
-	resp, err := state.NewResponses(c.template)
-	if err != nil {
-		shutdown()
-		c.fail(fmt.Errorf("while constructing state.Responses in processUpdates: %w", err))
-
-		return
-	}
-
 	for job := range updateWithStateCh {
-		handler := job.state.Wait().Handler(job.userData.Wait(), &resp)
+		handler := job.state.Wait().Handler(job.userData.Wait(), &c.responses)
 
 		transition := state.Handle(c.bot, job.update, handler)
 		for _, action := range transition.Actions {

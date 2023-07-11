@@ -8,7 +8,6 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
-	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
@@ -110,20 +109,4 @@ type addAPIKeyResponses struct {
 	BadAPIKey           string `template:"badApiKey"`
 	KeySentInPublicChat string `template:"keySentInPublicChat"`
 	GithubErrorGeneric  string `template:"githubErrorGeneric"`
-}
-
-func newAddAPIKeyResponse(template template.Template) (addAPIKeyResponses, error) {
-	group, err := template.Get("addApiKey")
-	if err != nil {
-		return addAPIKeyResponses{}, fmt.Errorf(`while getting "addApiKey" group from template: %w`, err)
-	}
-
-	resp := addAPIKeyResponses{}
-
-	err = group.Populate(&resp)
-	if err != nil {
-		return addAPIKeyResponses{}, fmt.Errorf(`while populating addApiKeyResponses from template: %w`, err)
-	}
-
-	return resp, nil
 }

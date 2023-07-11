@@ -9,7 +9,6 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
-	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
@@ -312,20 +311,4 @@ type rootResponses struct {
 	UseSetDefaultProject string `template:"useSetDefaultProject"`
 	SetDefaultProject    string `template:"setDefaultProject"`
 	GithubErrorGeneric   string `template:"githubErrorGeneric"`
-}
-
-func newRootResponses(template template.Template) (rootResponses, error) {
-	group, err := template.Get("root")
-	if err != nil {
-		return rootResponses{}, fmt.Errorf(`while getting "root" group from template: %w`, err)
-	}
-
-	resp := rootResponses{}
-
-	err = group.Populate(&resp)
-	if err != nil {
-		return rootResponses{}, fmt.Errorf(`while populating rootResponses from template: %w`, err)
-	}
-
-	return resp, nil
 }

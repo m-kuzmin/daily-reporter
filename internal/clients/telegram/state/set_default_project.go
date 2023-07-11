@@ -8,7 +8,6 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
-	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
@@ -94,20 +93,4 @@ type SetDefaultProjectResponses struct {
 	Success            string `template:"success"`
 	GithubErrorGeneric string `template:"githubErrorGeneric"`
 	NoAPIKeyAdded      string `template:"noApiKeyAdded"`
-}
-
-func NewSetDefaultProjectResponses(template template.Template) (SetDefaultProjectResponses, error) {
-	group, err := template.Get("setDefaultProject")
-	if err != nil {
-		return SetDefaultProjectResponses{}, fmt.Errorf(`while getting "setDefaultProject" group from template: %w`, err)
-	}
-
-	resp := SetDefaultProjectResponses{}
-
-	err = group.Populate(&resp)
-	if err != nil {
-		return SetDefaultProjectResponses{}, fmt.Errorf(`while populating SetDefaultProjectResponses from template: %w`, err)
-	}
-
-	return resp, nil
 }

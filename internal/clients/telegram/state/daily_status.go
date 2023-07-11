@@ -9,7 +9,6 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
-	"github.com/m-kuzmin/daily-reporter/internal/template"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 	"github.com/pkg/errors"
@@ -216,20 +215,4 @@ type DailyStatusResponses struct {
 	DiscoveryOfTheDay    string `template:"discoveryOfTheDay"`
 	QuestionsAndBlockers string `template:"questionsAndBlockers"`
 	GithubErrorGeneric   string `template:"githubErrorGeneric"`
-}
-
-func newDailyStatusResponse(template template.Template) (DailyStatusResponses, error) {
-	group, err := template.Get("dailyStatus")
-	if err != nil {
-		return DailyStatusResponses{}, fmt.Errorf(`while getting "dailyStatus" group from template: %w`, err)
-	}
-
-	resp := DailyStatusResponses{}
-
-	err = group.Populate(&resp)
-	if err != nil {
-		return DailyStatusResponses{}, fmt.Errorf(`while populating DailyStatusResponses from template: %w`, err)
-	}
-
-	return resp, nil
 }
