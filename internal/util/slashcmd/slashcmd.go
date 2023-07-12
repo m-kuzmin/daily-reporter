@@ -19,11 +19,11 @@ has to be written as two backslashes (`\\`). A literal double quote is `\"`(back
 by themselves dont indicate an argument boundary (i.e `foo"bar"` is one argument).
 */
 func Parse(source string) (Command, bool) {
-	parts := strings.SplitN(source, " ", 2) //nolint:gomnd
+	parts := strings.SplitN(source, " ", 2) //nolint:gomnd // Splits into Method and []Args
 	parse := func(firstWord, wordsAfter string) (Command, bool) {
 		method, ok := strings.CutPrefix(firstWord, "/")
 		if !ok || method == "" {
-			return Command{}, false
+			return Command{}, false //nolint:exhaustruct // False indicates the left side is invalid
 		}
 
 		return Command{
@@ -34,7 +34,7 @@ func Parse(source string) (Command, bool) {
 
 	switch len(parts) {
 	case 0:
-		return Command{}, false
+		return Command{}, false //nolint:exhaustruct // False indicates the left side is invalid
 	case 1:
 		return parse(parts[0], "")
 	default:

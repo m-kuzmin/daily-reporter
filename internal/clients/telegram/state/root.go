@@ -26,7 +26,7 @@ type RootHandler struct {
 	RootState
 }
 
-//nolint:cyclop
+//nolint:cyclop // Unsplittable switch
 func (s *RootHandler) PrivateTextMessage(message update.PrivateTextMessage) Transition {
 	cmd, isCmd := slashcmd.Parse(message.Text)
 	if !isCmd {
@@ -77,7 +77,7 @@ func (s *RootHandler) PrivateTextMessage(message update.PrivateTextMessage) Tran
 	return s.replyWithMessage(message.Chat.ID, s.responses.UnknownMessage)
 }
 
-//nolint:cyclop
+//nolint:cyclop // Unsplittable switch
 func (s *RootHandler) GroupTextMessage(message update.GroupTextMessage) Transition {
 	cmd, isCmd := slashcmd.Parse(message.Text)
 	if !isCmd {

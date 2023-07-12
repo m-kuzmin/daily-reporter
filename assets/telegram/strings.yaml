@@ -20,19 +20,17 @@ templates:
         <b><u>Groups and Private messages</u></b>
         • /help: you are here!
         • /dailyStatus: Generate a report from your GitHub project
-            • /dailyStatus <code>date</code> <code>&gtDATE&lt</code>: Set a specific day instead of the default (today). The generated report will have the date in italics.
+            • /dailyStatus <code>date</code> <code>&lt;DATE&gt;</code>: Set a specific day instead of the default (today). The generated report will have the date in italics.
         • /setDefaultProject: If you have multiple projects you can set a default one for this chat. If you only have 1, then it is automatically the default.
-            • /setDefaultProject <code>&gtID&lt</code>: The ID can be specified in the command itself.
+            • /setDefaultProject <code>&lt;ID&gt;</code>: The ID can be specified in the command itself.
 
         <b><u>Private messages</u></b>
         • /addApiKey: Set/delete your GitHub API key
         • /listProjects: List your projects (if the API key is set)
-            • /listProjects <code>after</code> <code>CURSOR</code>: Used to show the next page
-        • /setDefaultProject: If used with no arguments in PMs sends a list of buttons. When you press one it will ask for a chat to send to and paste the project ID for you.
-        • /setDefaultProject <code>ID (optional)</code>: If <code>ID</code> is specified then sets that as the default project. Otherwise you can send an ID as the next message.
+            • /listProjects <code>after</code> <code>&lt;CURSOR&gt;</code>: Used to show the next page
 
-        <i>Note:</i> <code>CURSOR</code> is a short (2+ characters) string used for pagination.
-        <code>ID</code> is a long string and all project IDs start with <code>PVT_</code>.
+        <i>Note:</i> <code>&lt;CURSOR&gt;</code> is a short (2+ characters) string used for pagination.
+        <code>&lt;ID&gt;</code> is a long string and all project IDs start with <code>PVT_</code>.
 
       - botDescription
 

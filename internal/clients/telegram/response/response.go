@@ -102,7 +102,7 @@ type InlineKeyboardButton struct {
 }
 
 func InlineButtonSwitchQueryCurrentChat(text, query string) InlineKeyboardButton {
-	return InlineKeyboardButton{ //nolint:exhauststruct // Other options should be None
+	return InlineKeyboardButton{ //nolint:exhaustruct // Other options should be None
 		Text:                         text,
 		SwitchInlineQueryCurrentChat: option.Some(query),
 	}

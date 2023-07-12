@@ -5487,6 +5487,10 @@ type GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemC
 	Typename string `json:"__typename"`
 	// Identifies the issue title.
 	Title string `json:"title"`
+	// The HTTP URL for this issue
+	Url string `json:"url"`
+	// Identifies the issue number.
+	Number int `json:"number"`
 }
 
 // GetTypename returns GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentIssue.Typename, and is useful for accessing the field via an interface.
@@ -5499,6 +5503,16 @@ func (v *GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2I
 	return v.Title
 }
 
+// GetUrl returns GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentIssue.Url, and is useful for accessing the field via an interface.
+func (v *GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentIssue) GetUrl() string {
+	return v.Url
+}
+
+// GetNumber returns GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentIssue.Number, and is useful for accessing the field via an interface.
+func (v *GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentIssue) GetNumber() int {
+	return v.Number
+}
+
 // GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest includes the requested fields of the GraphQL type PullRequest.
 // The GraphQL type's documentation follows.
 //
@@ -5507,6 +5521,10 @@ type GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemC
 	Typename string `json:"__typename"`
 	// Identifies the pull request title.
 	Title string `json:"title"`
+	// The HTTP URL for this pull request.
+	Url string `json:"url"`
+	// Identifies the pull request number.
+	Number int `json:"number"`
 }
 
 // GetTypename returns GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest.Typename, and is useful for accessing the field via an interface.
@@ -5517,6 +5535,16 @@ func (v *GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2I
 // GetTitle returns GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest.Title, and is useful for accessing the field via an interface.
 func (v *GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest) GetTitle() string {
 	return v.Title
+}
+
+// GetUrl returns GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest.Url, and is useful for accessing the field via an interface.
+func (v *GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest) GetUrl() string {
+	return v.Url
+}
+
+// GetNumber returns GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest.Number, and is useful for accessing the field via an interface.
+func (v *GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest) GetNumber() int {
+	return v.Number
 }
 
 // GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemStatusProjectV2ItemFieldDateValue includes the requested fields of the GraphQL type ProjectV2ItemFieldDateValue.
@@ -13832,9 +13860,13 @@ query GetProjectItems ($id: ID!, $first: Int!, $after: String) {
 						}
 						... on Issue {
 							title
+							url
+							number
 						}
 						... on PullRequest {
 							title
+							url
+							number
 						}
 					}
 				}

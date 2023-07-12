@@ -23,42 +23,19 @@ the previous thread to be finished mutating the value and be sure that their ope
 order.
 */
 type Storage[K comparable, V any] struct {
-	storeMu *sync.Mutex         //nolint:structcheck
-	store   map[K]borrowable[V] //nolint:structcheck
+	storeMu *sync.Mutex         //nolint:structcheck // Is used!
+	store   map[K]borrowable[V] //nolint:structcheck // Is used!
 }
 
 // NewStorage creates a new empty storage
 func NewStorage[K comparable, V any]() Storage[K, V] {
 	return Storage[K, V]{
-		storeMu: &sync.Mutex{},
-		store:   make(map[K]borrowable[V]),
+		store: make(map[K]borrowable[V]),
 	}
 }
 
-/*
-Future allows you to request a position in the borrow queue and Wait() your turn.
-*/
-type Future[V any] struct {
-	vMu sync.Mutex //nolint:structcheck
-	v   V          //nolint:structcheck
-}
-
-func NewImmediateFuture[V any](v V) *Future[V] {
-	return &Future[V]{v: v}
-}
-
-/*
-Wait will return the value once it is your turn to have it. After you are done with it you have to call Storage.Return
-*/
-func (f *Future[V]) Wait() V {
-	f.vMu.Lock()
-	defer f.vMu.Unlock()
-
-	return f.v
-}
-
 // Set stores the value in the map. Panics if it already exists. Use Return for keys that are in the map already.
-func (s *Storage[K, V]) Set(key K, value V) { //nolint:golint // It's confusing *Future with *Storage
+func (s *Storage[K, V]) Set(key K, value V) {
 	s.storeMu.Lock()
 	defer s.storeMu.Unlock()
 
@@ -79,7 +56,7 @@ func (s *Storage[K, V]) Set(key K, value V) { //nolint:golint // It's confusing 
 Borrow gives you a Future which is like a position in the queue to access and mutate the value. If the key doesnt exist
 in the map you will get `nil, false`.
 */
-func (s *Storage[K, V]) Borrow(key K) (*Future[V], bool) { //nolint:golint
+func (s *Storage[K, V]) Borrow(key K) (*Future[V], bool) {
 	s.storeMu.Lock()
 	defer s.storeMu.Unlock()
 
@@ -109,7 +86,7 @@ func (s *Storage[K, V]) Borrow(key K) (*Future[V], bool) { //nolint:golint
 }
 
 // Return stores the value in the map and allows the next borrower to have it.
-func (s *Storage[K, V]) Return(key K, value V) { //nolint:golint
+func (s *Storage[K, V]) Return(key K, value V) {
 	s.storeMu.Lock()
 	defer s.storeMu.Unlock()
 
@@ -129,6 +106,28 @@ func (s *Storage[K, V]) Return(key K, value V) { //nolint:golint
 	}
 
 	s.store[key] = lockable
+}
+
+/*
+Future allows you request a position in the borrow queue and Wait() your turn.
+*/
+type Future[V any] struct {
+	vMu sync.Mutex //nolint:structcheck // Is used!
+	v   V          //nolint:structcheck // Is used!
+}
+
+func NewImmediateFuture[V any](v V) *Future[V] {
+	return &Future[V]{v: v}
+}
+
+/*
+Wait will return the value once it is your turn to have it. After you are done with it you have to call Storage.Return
+*/
+func (f *Future[V]) Wait() V { //nolint:golint // Is confusing Storage and Future
+	f.vMu.Lock()
+	defer f.vMu.Unlock()
+
+	return f.v
 }
 
 /*

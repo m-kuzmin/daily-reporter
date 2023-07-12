@@ -71,7 +71,7 @@ func handleMessage(bot update.User, message update.Message, state Handler) (Tran
 	case update.ChatTypePrivate:
 		text, isSome := message.Text.Unwrap()
 		if !isSome {
-			return Transition{}, false
+			return Transition{}, false //nolint:exhaustruct // False indicates an error
 		}
 
 		if username := bot.Username.UnwrapOr(""); username != "" {
@@ -80,7 +80,7 @@ func handleMessage(bot update.User, message update.Message, state Handler) (Tran
 
 		from, isSome := message.From.Unwrap()
 		if !isSome {
-			return Transition{}, false
+			return Transition{}, false //nolint:exhaustruct // False indicates an error
 		}
 
 		return state.PrivateTextMessage(update.PrivateTextMessage{
@@ -92,7 +92,7 @@ func handleMessage(bot update.User, message update.Message, state Handler) (Tran
 	case update.ChatTypeGroup:
 		text, isSome := message.Text.Unwrap()
 		if !isSome {
-			return Transition{}, false
+			return Transition{}, false //nolint:exhaustruct // False indicates an error
 		}
 
 		if username := bot.Username.UnwrapOr(""); username != "" {
@@ -101,7 +101,7 @@ func handleMessage(bot update.User, message update.Message, state Handler) (Tran
 
 		from, isSome := message.From.Unwrap()
 		if !isSome {
-			return Transition{}, false
+			return Transition{}, false //nolint:exhaustruct // False indicates an error
 		}
 
 		return state.GroupTextMessage(update.GroupTextMessage{
@@ -111,8 +111,8 @@ func handleMessage(bot update.User, message update.Message, state Handler) (Tran
 			From: from,
 		}), true
 	case update.ChatTypeChannel, update.ChatTypeSuperGroup:
-		return Transition{}, false
+		return Transition{}, false //nolint:exhaustruct // False indicates an error
 	}
 
-	return Transition{}, false
+	return Transition{}, false //nolint:exhaustruct // False indicates an error
 }
