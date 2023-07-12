@@ -103,9 +103,13 @@ query GetProjectItems($id: ID!, $first: Int!, $after: String) {
             }
             ... on Issue {
               title
+              url
+              number
             }
             ... on PullRequest {
               title
+              url
+              number
             }
           }
         }
@@ -146,10 +150,12 @@ query GetProjectItems($id: ID!, $first: Int!, $after: String) {
 			title = node.Content.(*graphql.GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentDraftIssue).Title
 
 		case "Issue":
-			title = node.Content.(*graphql.GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentIssue).Title
+			issue := node.Content.(*graphql.GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentIssue)
+			title = fmt.Sprintf("<a href=%q>Issue #%d 🔗</a> %s", issue.Url, issue.Number, issue.Title)
 
 		case "PullRequest":
-			title = node.Content.(*graphql.GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest).Title
+			pr := node.Content.(*graphql.GetProjectItemsNodeProjectV2ItemsProjectV2ItemConnectionNodesProjectV2ItemContentPullRequest)
+			title = fmt.Sprintf("<a href=%q>PR #%d 🔗</a> %s", pr.Url, pr.Number, pr.Title)
 		default:
 			continue // Something else which we dont care about.
 		}
