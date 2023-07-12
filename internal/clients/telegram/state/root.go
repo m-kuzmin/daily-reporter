@@ -41,7 +41,11 @@ func (s *RootHandler) PrivateTextMessage(message update.PrivateTextMessage) Tran
 		return s.replyWithMessage(message.Chat.ID, s.responses.Help)
 
 	case "dailystatus":
-		return s.handleDailyStatus(message.Chat.ID)
+		if date, is := cmd.NextAfter("date"); is {
+			return s.handleDailyStatus(message.Chat.ID, option.Some(date))
+		}
+
+		return s.handleDailyStatus(message.Chat.ID, option.None[string]())
 
 	case "addapikey":
 		return NewTransition(AddAPIKeyState{RootState: s.RootState}, s.userData, []response.BotAction{
@@ -73,6 +77,7 @@ func (s *RootHandler) PrivateTextMessage(message update.PrivateTextMessage) Tran
 	return s.replyWithMessage(message.Chat.ID, s.responses.UnknownMessage)
 }
 
+//nolint:cyclop
 func (s *RootHandler) GroupTextMessage(message update.GroupTextMessage) Transition {
 	cmd, isCmd := slashcmd.Parse(message.Text)
 	if !isCmd {
@@ -87,7 +92,11 @@ func (s *RootHandler) GroupTextMessage(message update.GroupTextMessage) Transiti
 		return s.replyWithMessage(message.Chat.ID, s.responses.Help)
 
 	case "dailystatus":
-		return s.handleDailyStatus(message.Chat.ID)
+		if date, is := cmd.NextAfter("date"); is {
+			return s.handleDailyStatus(message.Chat.ID, option.Some(date))
+		}
+
+		return s.handleDailyStatus(message.Chat.ID, option.None[string]())
 
 	case "addapikey", listProjectsCommand:
 		return s.replyWithMessage(message.Chat.ID, s.responses.PrivateCommandUsed)
@@ -172,7 +181,7 @@ func (s *RootHandler) handleListProjects(
 	return NewTransition(s.RootState, s.userData, []response.BotAction{projectListWithPagination})
 }
 
-func (s *RootHandler) handleDailyStatus(chatID update.ChatID) Transition {
+func (s *RootHandler) handleDailyStatus(chatID update.ChatID, dateOverride option.Option[string]) Transition {
 	key, isSome := s.userData.GithubAPIKey.Unwrap()
 
 	if !isSome {
@@ -190,11 +199,11 @@ func (s *RootHandler) handleDailyStatus(chatID update.ChatID) Transition {
 			github.GqlErrorStringOr("GitHub API error: %s", err, s.responses.GithubErrorGeneric))
 	}
 
-	return s.maybeTransitionIntoDailyStatus(context.Background(), key, projects, chatID)
+	return s.maybeTransitionIntoDailyStatus(context.Background(), key, projects, dateOverride, chatID)
 }
 
 func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, apiKey string, projects []github.ProjectV2,
-	chatID update.ChatID,
+	dateOverride option.Option[string], chatID update.ChatID,
 ) Transition {
 	switch len(projects) {
 	case 0:
@@ -206,7 +215,7 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, apiKey
 	case 1:
 		s.DefaultProject = option.Some(projects[0].ID)
 
-		return NewTransition(NewDailyStatusState(s.RootState), s.userData, []response.BotAction{
+		return NewTransition(NewDailyStatusState(s.RootState, dateOverride), s.userData, []response.BotAction{
 			response.NewSendMessage(chatID, fmt.Sprintf(s.responses.DailyStatus, projects[0].Title)),
 		})
 	default:
@@ -227,7 +236,7 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, apiKey
 			})
 		}
 
-		return NewTransition(NewDailyStatusState(s.RootState), s.userData, []response.BotAction{
+		return NewTransition(NewDailyStatusState(s.RootState, dateOverride), s.userData, []response.BotAction{
 			response.NewSendMessage(chatID, fmt.Sprintf(s.responses.DailyStatus, defaultProject.Title)),
 		})
 	}

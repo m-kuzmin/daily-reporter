@@ -17,10 +17,14 @@ templates:
         %s
         Here are the commands I have:
 
+        <b><u>Groups and Private messages</u></b>
         • /help: you are here!
         • /dailyStatus: Generate a report from your GitHub project
-        • /setDefaultProject <code>ID (required)</code>: If you have multiple projects you can set a default one for this chat.
-        <b>Private messages:</b>
+            • /dailyStatus <code>date</code> <code>&gtDATE&lt</code>: Set a specific day instead of the default (today). The generated report will have the date in italics.
+        • /setDefaultProject: If you have multiple projects you can set a default one for this chat. If you only have 1, then it is automatically the default.
+            • /setDefaultProject <code>&gtID&lt</code>: The ID can be specified in the command itself.
+
+        <b><u>Private messages</u></b>
         • /addApiKey: Set/delete your GitHub API key
         • /listProjects: List your projects (if the API key is set)
             • /listProjects <code>after</code> <code>CURSOR</code>: Used to show the next page

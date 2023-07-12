@@ -67,7 +67,7 @@ func TestGetLeasedOnceWouldBlock(t *testing.T) {
 	time.Sleep(300 * time.Millisecond) // should be enough to know that Get didn't return yet
 
 	if finished {
-		t.Fatal("Get should have blocked.")
+		t.Fatal("Wait should have blocked.")
 	}
 
 	store.Return(key, value) // 1
@@ -75,7 +75,7 @@ func TestGetLeasedOnceWouldBlock(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 
 	if !finished {
-		t.Fatal("Should've unblocked by now.")
+		t.Fatal("Wait should've unblocked by now.")
 	}
 
 	store.Return(key, value) // 2
@@ -113,7 +113,7 @@ func TestGetLeasedTwiceWouldBlock(t *testing.T) {
 	time.Sleep(300 * time.Millisecond) // should be enough to know that Get didn't return yet
 
 	if finished1 || finished2 {
-		t.Fatalf("Get should have blocked. 1: %t 2: %t", finished1, finished2)
+		t.Fatalf("Wait should have blocked. 1: %t 2: %t", finished1, finished2)
 	}
 
 	store.Return(key, value) // 1
