@@ -179,7 +179,7 @@ query GetProjectItems($id: ID!, $first: Int!, $after: String) {
 	return itemsByStatus, nil
 }
 
-func (c Client) ProjectV2ByID(ctx context.Context, id string) (ProjectV2, error) {
+func (c Client) ProjectV2ByID(ctx context.Context, id ProjectID) (ProjectV2, error) {
 	_ = `# @genqlient
 query ProjectV2ByID($id: ID!) {
   node(id: $id) {
@@ -196,7 +196,7 @@ query ProjectV2ByID($id: ID!) {
   }
 }`
 
-	resp, err := graphql.ProjectV2ByID(ctx, c.client, id)
+	resp, err := graphql.ProjectV2ByID(ctx, c.client, string(id))
 	if err != nil {
 		return ProjectV2{}, errors.WithMessage(err, "while requesting ProjectV2 by ID")
 	}

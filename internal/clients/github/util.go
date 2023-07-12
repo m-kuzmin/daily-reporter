@@ -24,12 +24,12 @@ func GqlErrorStringOr(fmtStr string, err error, ifNotGqlError string) string {
 
 	var gqlerr *gqlerror.Error
 	if errors.As(err, &gqlerr) {
-		return fmt.Sprint(fmtStr, gqlerr.Error())
+		return fmt.Sprintf(fmtStr, gqlerr.Error())
 	}
 
 	var gqllist *gqlerror.List
 	if errors.As(err, &gqllist) {
-		return fmt.Sprint(fmtStr, gqllist.Error())
+		return fmt.Sprintf(fmtStr, gqllist.Error())
 	}
 
 	return ifNotGqlError

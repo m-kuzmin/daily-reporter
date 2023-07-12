@@ -204,28 +204,11 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, projec
 			),
 		})
 	case 1:
-		if s.UseOnlyProjectNoSaveDefault {
-			return NewTransition(NewDailyStatusStateForProject(s.RootState, projects[0].ID), s.userData,
-				[]response.BotAction{
-					response.NewSendMessage(chatID, s.responses.DailyStatus),
-				})
-		}
+		s.DefaultProject = option.Some(projects[0].ID)
 
-		return NewTransition(NewDailyStatusStateAskSaveDefault(s.RootState, projects[0].ID), s.userData,
-			[]response.BotAction{
-				response.NewSendMessage(chatID, fmt.Sprintf(s.responses.DailyStatusOneProject,
-					projects[0].Cursor, projects[0].URL, projects[0].Title,
-				)).DisableWebPreview().SetReplyMarkup([][]response.InlineKeyboardButton{
-					{response.InlineKeyboardButton{
-						Text:         "Yes, set this project as default",
-						CallbackData: option.Some(cqDailyStatusSetOnlyProjectAsDefault),
-					}},
-					{response.InlineKeyboardButton{
-						Text:         "No, I will chose every time",
-						CallbackData: option.Some(cqDailyStatusAskDefaultProjectEveryTime),
-					}},
-				}),
-			})
+		return NewTransition(NewDailyStatusState(s.RootState), s.userData, []response.BotAction{
+			response.NewSendMessage(chatID, fmt.Sprintf(s.responses.DailyStatus, projects[0].Title)),
+		})
 	default:
 		projectID, isSome := s.DefaultProject.Unwrap()
 		if !isSome {
@@ -236,15 +219,15 @@ func (s *RootHandler) maybeTransitionIntoDailyStatus(ctx context.Context, projec
 			})
 		}
 
-		defaultProject, err := github.NewClient(s.userData.GithubAPIKey.MustUnwrap()).ProjectV2ByID(ctx, string(projectID))
+		defaultProject, err := github.NewClient(s.userData.GithubAPIKey.MustUnwrap()).ProjectV2ByID(ctx, projectID)
 		if err != nil {
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
 				response.NewSendMessage(chatID,
-					github.GqlErrorStringOr("Github API error: %s", err, s.responses.GithubErrorGeneric)),
+					github.GqlErrorStringOr("GitHub API error: %s", err, s.responses.GithubErrorGeneric)),
 			})
 		}
 
-		return NewTransition(NewDailyStatusStateForProject(s.RootState, projectID), s.userData, []response.BotAction{
+		return NewTransition(NewDailyStatusState(s.RootState), s.userData, []response.BotAction{
 			response.NewSendMessage(chatID, fmt.Sprintf(s.responses.DailyStatus, defaultProject.Title)),
 		})
 	}
@@ -256,7 +239,7 @@ func (s *RootHandler) saveDefaultProject(id string, chatID update.ChatID) Transi
 		return s.replyWithMessage(chatID, s.responses.NoAPIKeyAdded)
 	}
 
-	proj, err := github.NewClient(token).ProjectV2ByID(context.Background(), id)
+	proj, err := github.NewClient(token).ProjectV2ByID(context.Background(), github.ProjectID(id))
 	if err != nil {
 		return s.replyWithMessage(chatID,
 			github.GqlErrorStringOr("Github API error: %s", err, s.responses.GithubErrorGeneric))
@@ -275,9 +258,6 @@ func (s RootHandler) replyWithMessage(chatID update.ChatID, message string) Tran
 
 type RootState struct {
 	DefaultProject option.Option[github.ProjectID]
-	// If true and user has 1 project use that as default. When the user will have non-1 amount of projects has no
-	// effect
-	UseOnlyProjectNoSaveDefault bool
 }
 
 func (s RootState) Handler(userData UserSharedData, responses *Responses) Handler {
@@ -291,24 +271,23 @@ func (s RootState) Handler(userData UserSharedData, responses *Responses) Handle
 type rootResponses struct {
 	// command output
 
-	Start                 string `template:"start"`
-	Help                  string `template:"help"`
-	AddAPIKey             string `template:"addApiKey"`
-	DailyStatus           string `template:"dailyStatus"`
-	DailyStatusOneProject string `template:"dailyStatusOneProject"`
-	SavedDefaultProject   string `template:"savedDefaultProject"`
+	Start               string `template:"start"`
+	Help                string `template:"help"`
+	AddAPIKey           string `template:"addApiKey"`
+	DailyStatus         string `template:"dailyStatus"`
+	SavedDefaultProject string `template:"savedDefaultProject"`
+	SetDefaultProject   string `template:"setDefaultProject"`
 
 	// warnings
 
-	UserHasZeroProjects string `template:"userHasZeroProjects"`
-	LastProjectsPage    string `template:"lastProjectsPage"`
+	UserHasZeroProjects  string `template:"userHasZeroProjects"`
+	LastProjectsPage     string `template:"lastProjectsPage"`
+	UseSetDefaultProject string `template:"useSetDefaultProject"`
 
 	// errors
 
-	PrivateCommandUsed   string `template:"privateCommandUsed"`
-	UnknownMessage       string `template:"unknownMessage"`
-	NoAPIKeyAdded        string `template:"noApiKeyAdded"`
-	UseSetDefaultProject string `template:"useSetDefaultProject"`
-	SetDefaultProject    string `template:"setDefaultProject"`
-	GithubErrorGeneric   string `template:"githubErrorGeneric"`
+	PrivateCommandUsed string `template:"privateCommandUsed"`
+	UnknownMessage     string `template:"unknownMessage"`
+	NoAPIKeyAdded      string `template:"noApiKeyAdded"`
+	GithubErrorGeneric string `template:"githubErrorGeneric"`
 }

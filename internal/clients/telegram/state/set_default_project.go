@@ -40,7 +40,6 @@ func (s *SetDefaultProjectHandler) saveDefaultProject(ctx context.Context, chatI
 		switch strings.ToLower(cmd.Method) {
 		case noneCommand:
 			s.DefaultProject = option.None[github.ProjectID]()
-			s.UseOnlyProjectNoSaveDefault = false
 
 			return NewTransition(s.RootState, s.userData, []response.BotAction{
 				response.NewSendMessage(chatID, "Default project reset for this chat."),
@@ -57,14 +56,13 @@ func (s *SetDefaultProjectHandler) saveDefaultProject(ctx context.Context, chatI
 		return s.replyWithMessage(chatID, s.responses.NoAPIKeyAdded)
 	}
 
-	project, err := github.NewClient(token).ProjectV2ByID(ctx, text)
+	project, err := github.NewClient(token).ProjectV2ByID(ctx, github.ProjectID(text))
 	if err != nil {
 		return s.replyWithMessage(chatID,
 			github.GqlErrorStringOr("Github API error: %s", err, s.responses.GithubErrorGeneric))
 	}
 
 	s.DefaultProject = option.Some[github.ProjectID](github.ProjectID(text))
-	s.UseOnlyProjectNoSaveDefault = false
 
 	return NewTransition(s.RootState, s.userData, []response.BotAction{
 		response.NewSendMessage(chatID, fmt.Sprintf(s.responses.Success, project.Title)),
