@@ -94,7 +94,8 @@ func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string
 
 func (s *DailyStatusHandler) generateReport() (string, error) {
 	items, err := github.NewClient(s.userData.GithubAPIKey.UnwrapOr("")).ListViewerProjectV2Items(context.Background(),
-		s.DefaultProject.MustUnwrap(), option.Some(dailyStatusItemLimit), option.None[github.ProjectCursor]())
+		s.DefaultProject.MustExpect("generateReport should only be called if the default project is set"),
+		option.Some(dailyStatusItemLimit), option.None[github.ProjectCursor]())
 	if err != nil {
 		return "", errors.WithMessage(err, "while getting user's project v2 items")
 	}
@@ -102,23 +103,25 @@ func (s *DailyStatusHandler) generateReport() (string, error) {
 	const listSep = "\n• "
 
 	report := fmt.Sprintf(`#daily report %s:
-<b>Today I worked on</b>%s
+<b><u>Today I worked on</u></b>%s
 
-<b>Tomorrow I will work on</b>%s
+<b><u>Tomorrow I will work on</u></b>%s
 
-`, time.Now().Format("01.02"), listSep+strings.Join(items["Done"], listSep),
+`,
+		s.Date,
+		listSep+strings.Join(items["Done"], listSep),
 		listSep+strings.Join(items["In Progress"], listSep))
 
 	if dod, isSome := s.DiscoveryOfTheDay.Unwrap(); isSome {
-		report += "<b>Discovery of the day</b>\n\n" + dod + "\n\n"
+		report += "<b><u>Discovery of the day</u></b>\n" + dod + "\n\n"
 	}
 
 	if blockers, isSome := s.QuestionsAndBlockers.Unwrap(); isSome {
-		report += "<b>Questions/Blockers</b>\n\n" + blockers + "\n\n"
+		report += "<b><u>Questions/Blockers</u></b>\n" + blockers + "\n\n"
 	}
 
 	if len(items["In Review"]) != 0 {
-		report += "<b>In review</b>" + listSep + strings.Join(items["In Review"], listSep)
+		report += "<b><u>In review</u></b>" + listSep + strings.Join(items["In Review"], listSep)
 	}
 
 	return report, nil
@@ -128,15 +131,19 @@ type DailyStatusState struct {
 	Stage                dailyStatusStage
 	DiscoveryOfTheDay    option.Option[string]
 	QuestionsAndBlockers option.Option[string]
+	Date                 string
 	RootState
 }
 
-func NewDailyStatusState(root RootState) DailyStatusState {
+func NewDailyStatusState(root RootState, date option.Option[string]) DailyStatusState {
 	return DailyStatusState{
 		Stage:                discoveryOfTheDayDailyStatusStage,
 		DiscoveryOfTheDay:    option.None[string](),
 		QuestionsAndBlockers: option.None[string](),
-		RootState:            root,
+		Date: date.Map(func(date string) string {
+			return fmt.Sprintf("<i>%s</i>", date)
+		}).UnwrapOr(time.Now().Format("01.02")),
+		RootState: root,
 	}
 }
 
