@@ -23,7 +23,7 @@ the previous thread to be finished mutating the value and be sure that their ope
 order.
 */
 type Storage[K comparable, V any] struct {
-	storeMu *sync.Mutex         //nolint:structcheck // Is used!
+	storeMu sync.Mutex          //nolint:structcheck // Is used!
 	store   map[K]borrowable[V] //nolint:structcheck // Is used!
 }
 
