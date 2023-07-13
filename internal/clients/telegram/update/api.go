@@ -16,7 +16,8 @@ type Update struct {
 type UpdateID int64
 
 /*
-Returns `Some[string]` that refers to a conversation the user has with a bot. `None` if the conversation has no state.
+Returns `string, true` that refers to a conversation the user has with a bot. `"", false` if the conversation has no
+state.
 */
 func (u Update) StateID() (string, bool) {
 	if message, isSome := u.Message.Unwrap(); isSome {
@@ -55,10 +56,11 @@ type Message struct {
 type MessageID int64
 
 type CallbackQuery struct {
-	ID      CallbackQueryID        `json:"id"`
-	From    User                   `json:"from"`
-	Message option.Option[Message] `json:"message,omitempty"`
-	Data    option.Option[string]  `json:"data,omitempty"`
+	UpdateID UpdateID
+	ID       CallbackQueryID        `json:"id"`
+	From     User                   `json:"from"`
+	Message  option.Option[Message] `json:"message,omitempty"`
+	Data     option.Option[string]  `json:"data,omitempty"`
 }
 
 type CallbackQueryID string
@@ -89,3 +91,47 @@ const (
 	ChatTypeSuperGroup ChatType = "supergroup"
 	ChatTypeChannel    ChatType = "channel"
 )
+
+func (u UpdateID) Log() string {
+	return fmt.Sprintf("(UpdateID %d)", u)
+}
+
+func (m MessageID) Log() string {
+	return fmt.Sprintf("(MessageID %d)", m)
+}
+
+func (u User) Log() string {
+	return u.Username.Map(func(u string) string {
+		return fmt.Sprintf("(User @%s)", u)
+	}).UnwrapOr(fmt.Sprintf("(User %d)", u.ID))
+}
+
+func (c CallbackQuery) Log() string {
+	return fmt.Sprintf("(CallbackQuery %s %s %s %s %s)",
+		c.UpdateID.Log(),
+		c.ID.Log(),
+		c.From.Log(),
+		option.Map[Message, string](c.Message, func(m Message) string {
+			return m.Log()
+		}).UnwrapOr("(Message nil)"),
+		c.Data.Map(func(s string) string {
+			return fmt.Sprintf("(Data %q)", s)
+		}).UnwrapOr("(Data nil)"),
+	)
+}
+
+func (c CallbackQueryID) Log() string {
+	return fmt.Sprintf("(CallbackQueryID %q)", c)
+}
+
+func (m Message) Log() string {
+	return fmt.Sprintf("(Message %s %s %s (Text %q))", m.ID.Log(),
+		option.Map(m.From, func(m User) string { return m.Log() }).UnwrapOr("(From nil)"),
+		m.Chat.Log(),
+		m.Text,
+	)
+}
+
+func (c Chat) Log() string {
+	return fmt.Sprintf("(Chat (ChatType %s) (ChatID %d))", c.Type, c.ID)
+}

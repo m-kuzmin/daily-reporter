@@ -29,9 +29,27 @@ func (o Option[T]) IsSome() bool {
 	return o.value != nil
 }
 
-// IsNone returns true if the Option is a `None` variabnt.
+// IsNone returns true if the Option is a `None` variant.
 func (o Option[T]) IsNone() bool {
 	return o.value == nil
+}
+
+// If the Option is `Some` returns `Some(f(T))`. Otherwise `None`.
+func (o Option[T]) Map(f func(T) T) Option[T] {
+	if v, isSome := o.Unwrap(); isSome {
+		o.value = f(v)
+	}
+
+	return o
+}
+
+// Returns `Some(f(T))` if the Option is `Some`. Otherwise `None`.
+func Map[T, U any](o Option[T], f func(T) U) Option[U] {
+	if v, isSome := o.Unwrap(); isSome {
+		return Some(f(v))
+	}
+
+	return None[U]()
 }
 
 // Unwrap returns the value contained in `Some` and true; or a zero value and false if the Option is None.
@@ -66,15 +84,6 @@ func (o Option[T]) UnwrapOrElse(f func() T) T {
 	}
 
 	return f()
-}
-
-// If the Option is `Some` returns `Some(f(T))`. Otherwise `None`.
-func (o Option[T]) Map(f func(T) T) Option[T] {
-	if v, isSome := o.Unwrap(); isSome {
-		o.value = f(v)
-	}
-
-	return o
 }
 
 func (o *Option[T]) UnmarshalJSON(data []byte) error {

@@ -1,13 +1,14 @@
 package state
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
+	"github.com/m-kuzmin/daily-reporter/internal/util/logging"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 	"github.com/m-kuzmin/daily-reporter/internal/util/slashcmd"
 )
@@ -18,15 +19,20 @@ type AddAPIKeyHandler struct {
 	AddAPIKeyState
 }
 
-func (s *AddAPIKeyHandler) PrivateTextMessage(message update.PrivateTextMessage) Transition {
+func (s *AddAPIKeyHandler) PrivateTextMessage(ctx context.Context, message update.PrivateTextMessage) Transition {
 	cmd, isCmd := slashcmd.Parse(message.Text)
 	if isCmd {
 		switch strings.ToLower(cmd.Method) {
 		case cancelCommand:
+			logging.Debugf("%s %s Cancel /addApiKey ; Return to RootState", message.UpdateID.Log(), message.From.Log())
+
 			return s.returnToRootStateWithMessage(message.Chat.ID, s.responses.Cancel)
 
 		case noneCommand:
 			s.userData.GithubAPIKey = option.None[string]()
+
+			logging.Infof("%s API key deleted", message.From.Log())
+			logging.Tracef("%s Return to RootState", message.UpdateID.Log())
 
 			return s.returnToRootStateWithMessage(message.Chat.ID, s.responses.Deleted)
 		}
@@ -34,29 +40,37 @@ func (s *AddAPIKeyHandler) PrivateTextMessage(message update.PrivateTextMessage)
 
 	client := github.NewClient(message.Text)
 
-	login, err := client.Login()
+	login, err := client.Login(ctx)
 	if err != nil {
-		log.Printf("While requesting user's GitHub username: %s", err)
+		logging.Errorf("%s %s While saving GitHub API key: %s", message.UpdateID.Log(), message.From.Log(), err)
 
 		return s.sameStateWithMessage(message.Chat.ID, s.responses.BadAPIKey)
 	}
 
 	s.userData.GithubAPIKey = option.Some(message.Text)
 
+	logging.Infof("%s %s API key saved", message.UpdateID.Log(), message.From.Log())
+	logging.Tracef("%s Return to RootState", message.UpdateID.Log())
+
 	return NewTransition(s.RootState, s.userData, []response.BotAction{
 		response.NewSendMessage(message.Chat.ID, fmt.Sprintf(s.responses.Success, login, login)).EnableWebPreview(),
 	})
 }
 
-func (s *AddAPIKeyHandler) GroupTextMessage(message update.GroupTextMessage) Transition {
+func (s *AddAPIKeyHandler) GroupTextMessage(_ context.Context, message update.GroupTextMessage) Transition {
+	logging.Errorf("%s %s %s AddAPIKeyState should never be entered for any type of chat except private messages",
+		message.UpdateID.Log(), message.Chat.Log(), message.From.Log())
+
 	return s.returnToRootStateWithMessage(message.Chat.ID, s.responses.KeySentInPublicChat)
 }
 
-func (s *AddAPIKeyHandler) Ignore() Transition {
+func (s *AddAPIKeyHandler) Ignore(_ context.Context) Transition {
 	return NewTransition(s.AddAPIKeyState, s.userData, response.Nothing())
 }
 
-func (s *AddAPIKeyHandler) CallbackQuery(cq update.CallbackQuery) Transition {
+func (s *AddAPIKeyHandler) CallbackQuery(_ context.Context, cq update.CallbackQuery) Transition {
+	logging.Infof("%s Ignoring callback query in AddApiKeyState", cq.Log())
+
 	return NewTransition(s.AddAPIKeyState, s.userData, []response.BotAction{
 		response.AnswerCallbackQuery{
 			ID:        string(cq.ID),

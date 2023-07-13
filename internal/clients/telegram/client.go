@@ -17,6 +17,7 @@ import (
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
 	"github.com/m-kuzmin/daily-reporter/internal/util"
 	"github.com/m-kuzmin/daily-reporter/internal/util/borrowonce"
+	"github.com/m-kuzmin/daily-reporter/internal/util/logging"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 )
 
@@ -202,7 +203,7 @@ You can receive the errors from an error chan Start() gives back. You can assume
 the time you receive the error value.
 */
 func (c *Client) fail(err error) {
-	log.Printf("Bot declared a fatal error: %s", err)
+	logging.Errorf("Bot declared a fatal error: %s", err)
 	c.Stop()
 	c.errCh <- err
 }
@@ -233,7 +234,7 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- update.Update) 
 		}
 	}()
 
-	log.Println("Telegram bot processor started")
+	logging.Infof("Telegram processor started")
 
 	getUpdates := getUpdatesRequest{
 		Offset:  update.UpdateID(0),
@@ -278,7 +279,7 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- update.Update) 
 			}
 
 			for i, upd := range updates {
-				log.Printf("Sending update #%d to the queue", upd.ID)
+				logging.Tracef("%s Queued", upd.ID.Log())
 				updateCh <- (updates)[i]
 
 				if getUpdates.Offset <= upd.ID {
@@ -406,7 +407,7 @@ func (c *Client) processUpdates(ctx context.Context, updateWithStateCh <-chan up
 	for job := range updateWithStateCh {
 		handler := job.state.Wait().Handler(job.userData.Wait(), &c.responses)
 
-		transition := state.Handle(c.bot, job.update, handler)
+		transition := state.Handle(ctx, c.bot, job.update, handler)
 		for _, action := range transition.Actions {
 			endpoint, body, err := action.JSONEncode()
 			if err != nil {
@@ -429,7 +430,7 @@ func (c *Client) processUpdates(ctx context.Context, updateWithStateCh <-chan up
 			c.userSharedDataStore.Return(id, transition.UserData)
 		}
 
-		log.Printf("Update #%d is processed.\n", job.update.ID)
+		logging.Tracef("%s Processed", job.update.ID.Log())
 	}
 
 	shutdown()

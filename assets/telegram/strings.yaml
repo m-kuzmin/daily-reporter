@@ -26,6 +26,7 @@ templates:
 
         <b><u>Private messages</u></b>
         • /addApiKey: Set/delete your GitHub API key
+            • /addApiKey <code>&lt;API_KEY&gt;</code>: Set the API key without entering the menu.
         • /listProjects: List your projects (if the API key is set)
             • /listProjects <code>after</code> <code>&lt;CURSOR&gt;</code>: Used to show the next page
 
@@ -90,13 +91,27 @@ templates:
 
         Try adding a project or readding your API key using /addApiKey.
 
-    githubErrorGeneric: &root_githubErrorGeneric ["Something went wrong while contacting GitHub. Is your API key still valid?"]
+    badApiKey:
+      - |
+        I assume the text after "/addApiKey" is your token. But it's not a valid one. You can create a token on <a href=%q>this page</a>.
+        You can also use /addApiKey with no text after the command which will enter a menu with a guide on how to create a key.
+      - githubTokenSettingsPage
 
-  addApiKey:
-    success:
+    apiKeySentInPublicChat: &addApiKey_keySentInPublicChat
+      - |
+        If what you've sent me just now is a GitHub API token, <b>immediately</b> <a href="%s">revoke it</a>!
+        You should never try to add tokens in a public chat.
+      - githubTokenSettingsPage
+
+    apiKeyAdded: &addApiKey_Success
       - |
         Nice to meet you, <a href="https://github.com/%%s">%%s</a>!
         You probably want to use /help to see a command list.
+
+    githubErrorGeneric: &root_githubErrorGeneric ["Something went wrong while contacting GitHub. Is your API key still valid?"]
+
+  addApiKey:
+    success: *addApiKey_Success
 
     cancel: ["Canceled."]
 
@@ -104,11 +119,7 @@ templates:
 
     badApiKey: ["Could not use your token, try again or /cancel"]
 
-    keySentInPublicChat:
-      - |
-        If what you've sent me just now is a GitHub API token, <b>immediately</b> <a href="%s">revoke it</a>!
-        You should never try to add tokens in a public chat.
-      - githubTokenSettingsPage
+    keySentInPublicChat: *addApiKey_keySentInPublicChat
 
     githubErrorGeneric: *root_githubErrorGeneric
 

@@ -22,26 +22,26 @@ type DailyStatusHandler struct {
 	DailyStatusState
 }
 
-func (s *DailyStatusHandler) GroupTextMessage(message update.GroupTextMessage) Transition {
-	return s.handleDailyStatus(message.Chat.ID, message.Text)
+func (s *DailyStatusHandler) GroupTextMessage(ctx context.Context, message update.GroupTextMessage) Transition {
+	return s.handleDailyStatus(ctx, message.Chat.ID, message.Text)
 }
 
-func (s *DailyStatusHandler) PrivateTextMessage(message update.PrivateTextMessage) Transition {
-	return s.handleDailyStatus(message.Chat.ID, message.Text)
+func (s *DailyStatusHandler) PrivateTextMessage(ctx context.Context, message update.PrivateTextMessage) Transition {
+	return s.handleDailyStatus(ctx, message.Chat.ID, message.Text)
 }
 
-func (s *DailyStatusHandler) CallbackQuery(callback update.CallbackQuery) Transition {
+func (s *DailyStatusHandler) CallbackQuery(_ context.Context, callback update.CallbackQuery) Transition {
 	return NewTransition(s.DailyStatusState, s.userData, []response.BotAction{
 		response.CallbackQueryAnswerNotification(callback.ID, "This button doesnt work. Use /cancel to quit /dailyStatus."),
 	})
 }
 
-func (s *DailyStatusHandler) Ignore() Transition {
+func (s *DailyStatusHandler) Ignore(_ context.Context) Transition {
 	return NewTransition(s.DailyStatusState, s.userData, response.Nothing())
 }
 
 //nolint:cyclop // Splitting this into separate functions would just obscure the side-effects even more.
-func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string) Transition {
+func (s *DailyStatusHandler) handleDailyStatus(ctx context.Context, chatID update.ChatID, text string) Transition {
 	cmd, isCmd := slashcmd.Parse(text)
 
 	if isCmd && strings.ToLower(cmd.Method) == cancelCommand {
@@ -50,7 +50,8 @@ func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string
 		})
 	}
 
-	if s.userData.GithubAPIKey.IsNone() {
+	apiKey, isSome := s.userData.GithubAPIKey.Unwrap()
+	if !isSome {
 		return NewTransition(s.RootState, s.userData, []response.BotAction{
 			response.NewSendMessage(chatID, s.responses.NoAPIKeyAdded),
 		})
@@ -86,7 +87,7 @@ func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string
 			})
 		}
 
-		report, err := s.generateReport(defaultProject)
+		report, err := s.generateReport(ctx, apiKey, defaultProject)
 		if err != nil {
 			report = github.GqlErrorStringOr("GitHub API error: %s", err, s.responses.GithubErrorGeneric)
 		}
@@ -96,12 +97,13 @@ func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string
 		})
 	}
 
-	return s.Ignore()
+	return s.Ignore(ctx)
 }
 
-func (s *DailyStatusHandler) generateReport(projectID github.ProjectID) (string, error) {
-	items, err := github.NewClient(s.userData.GithubAPIKey.UnwrapOr("")).ListViewerProjectV2Items(context.Background(),
-		projectID, dailyStatusItemLimit, option.None[github.ProjectCursor]())
+func (s *DailyStatusHandler) generateReport(ctx context.Context, apiKey string, projectID github.ProjectID,
+) (string, error) {
+	items, err := github.NewClient(apiKey).ListViewerProjectV2Items(ctx, projectID, dailyStatusItemLimit,
+		option.None[github.ProjectCursor]())
 	if err != nil {
 		return "", errors.WithMessage(err, "while getting user's project v2 items")
 	}

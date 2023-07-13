@@ -1,19 +1,26 @@
 package state
 
 import (
-	"log"
+	"context"
 	"strings"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
+	"github.com/m-kuzmin/daily-reporter/internal/util/logging"
 	"github.com/m-kuzmin/daily-reporter/internal/util/option"
 )
 
 type Handler interface {
-	PrivateTextMessage(update.PrivateTextMessage) Transition
-	GroupTextMessage(update.GroupTextMessage) Transition
-	CallbackQuery(update.CallbackQuery) Transition
-	Ignore() Transition
+	PrivateTextMessage(context.Context, update.PrivateTextMessage) Transition
+	GroupTextMessage(context.Context, update.GroupTextMessage) Transition
+	CallbackQuery(context.Context, update.CallbackQuery) Transition
+	// Ignore is called for all updates that a bot doesnt know how to process yet.
+	Ignore(context.Context) Transition
+	/*
+		Unwind is called before the bot is shutdown and can be used to return a conversation to a "default" state. Use it to
+		cancel or clean up any commands.
+	*/
+	// Unwind(context.Context) Transition
 }
 
 type State interface {
@@ -50,23 +57,25 @@ func NewTransition(
 	}
 }
 
-func Handle(bot update.User, upd update.Update, state Handler) Transition {
+func Handle(ctx context.Context, bot update.User, upd update.Update, state Handler) Transition {
 	if message, isSome := upd.Message.Unwrap(); isSome {
-		if transition, ok := handleMessage(bot, message, state); ok {
+		if transition, ok := handleMessage(ctx, bot, message, upd.ID, state); ok {
 			return transition
 		}
 	}
 
 	if cq, isSome := upd.CallbackQuery.Unwrap(); isSome {
-		return state.CallbackQuery(cq)
+		return state.CallbackQuery(ctx, cq)
 	}
 
-	log.Println("Ignoring this update using state.Ignore()")
+	logging.Infof("%s Ignoring this update using state.Ignore()", upd.ID.Log())
 
-	return state.Ignore()
+	return state.Ignore(ctx)
 }
 
-func handleMessage(bot update.User, message update.Message, state Handler) (Transition, bool) {
+func handleMessage(ctx context.Context, bot update.User, message update.Message, updateID update.UpdateID,
+	state Handler,
+) (Transition, bool) {
 	switch message.Chat.Type {
 	case update.ChatTypePrivate:
 		text, isSome := message.Text.Unwrap()
@@ -83,11 +92,12 @@ func handleMessage(bot update.User, message update.Message, state Handler) (Tran
 			return Transition{}, false //nolint:exhaustruct // False indicates an error
 		}
 
-		return state.PrivateTextMessage(update.PrivateTextMessage{
-			ID:   message.ID,
-			Text: text,
-			Chat: message.Chat,
-			From: from,
+		return state.PrivateTextMessage(ctx, update.PrivateTextMessage{
+			UpdateID: updateID,
+			ID:       message.ID,
+			Text:     text,
+			Chat:     message.Chat,
+			From:     from,
 		}), true
 	case update.ChatTypeGroup:
 		text, isSome := message.Text.Unwrap()
@@ -104,11 +114,12 @@ func handleMessage(bot update.User, message update.Message, state Handler) (Tran
 			return Transition{}, false //nolint:exhaustruct // False indicates an error
 		}
 
-		return state.GroupTextMessage(update.GroupTextMessage{
-			ID:   message.ID,
-			Text: text,
-			Chat: message.Chat,
-			From: from,
+		return state.GroupTextMessage(ctx, update.GroupTextMessage{
+			UpdateID: updateID,
+			ID:       message.ID,
+			Text:     text,
+			Chat:     message.Chat,
+			From:     from,
 		}), true
 	case update.ChatTypeChannel, update.ChatTypeSuperGroup:
 		return Transition{}, false //nolint:exhaustruct // False indicates an error

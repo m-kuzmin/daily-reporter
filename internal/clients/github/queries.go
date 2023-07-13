@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (c *Client) Login() (string, error) {
+func (c *Client) Login(ctx context.Context) (string, error) {
 	_ = `# @genqlient
 query Login {
   viewer {
@@ -17,7 +17,7 @@ query Login {
   }
 }`
 
-	resp, err := graphql.Login(context.Background(), c.client)
+	resp, err := graphql.Login(ctx, c.client)
 	if err != nil {
 		return "", fmt.Errorf("while getting user's GitHub username (login): %w", err)
 	}
@@ -25,7 +25,8 @@ query Login {
 	return resp.Viewer.Login, nil
 }
 
-func (c Client) ListViewerProjects(first uint, after option.Option[ProjectCursor]) ([]ProjectV2, error) {
+func (c Client) ListViewerProjects(ctx context.Context, first uint, after option.Option[ProjectCursor],
+) ([]ProjectV2, error) {
 	_ = `# @genqlient
 query ViewerProjectsV2($first: Int!, $after: String) {
   viewer {
@@ -47,7 +48,7 @@ query ViewerProjectsV2($first: Int!, $after: String) {
   }
 }`
 
-	graphql, err := graphql.ViewerProjectsV2(context.Background(), c.client, int(first),
+	graphql, err := graphql.ViewerProjectsV2(ctx, c.client, int(first),
 		string(after.UnwrapOr("")))
 	if err != nil {
 		return []ProjectV2{}, fmt.Errorf("while requesting user's projects over GitHub GraphQL: %w", err)
@@ -127,7 +128,8 @@ query GetProjectItems($id: ID!, $first: Int!, $after: String) {
 	data, err := graphql.GetProjectItems(ctx, c.client, string(projectID), int(first),
 		string(after.UnwrapOr("")))
 	if err != nil {
-		return ProjectV2ItemsByStatus{}, fmt.Errorf("while requesting user's projects over GitHub GraphQL: %w", err)
+		return ProjectV2ItemsByStatus{}, fmt.Errorf(
+			"while requesting user's project (ProjectID %s) items over GitHub GraphQL: %w", projectID, err)
 	}
 
 	itemsByStatus := make(ProjectV2ItemsByStatus)

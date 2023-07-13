@@ -118,8 +118,10 @@ import (
 // GetProjectItemsNodeOrgInviteMemberAuditEntry
 // GetProjectItemsNodeOrgInviteToBusinessAuditEntry
 // GetProjectItemsNodeOrgOauthAppAccessApprovedAuditEntry
+// GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry
 // GetProjectItemsNodeOrgOauthAppAccessDeniedAuditEntry
 // GetProjectItemsNodeOrgOauthAppAccessRequestedAuditEntry
+// GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry
 // GetProjectItemsNodeOrgRemoveBillingManagerAuditEntry
 // GetProjectItemsNodeOrgRemoveMemberAuditEntry
 // GetProjectItemsNodeOrgRemoveOutsideCollaboratorAuditEntry
@@ -397,9 +399,13 @@ func (v *GetProjectItemsNodeOrgInviteToBusinessAuditEntry) implementsGraphQLInte
 }
 func (v *GetProjectItemsNodeOrgOauthAppAccessApprovedAuditEntry) implementsGraphQLInterfaceGetProjectItemsNode() {
 }
+func (v *GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry) implementsGraphQLInterfaceGetProjectItemsNode() {
+}
 func (v *GetProjectItemsNodeOrgOauthAppAccessDeniedAuditEntry) implementsGraphQLInterfaceGetProjectItemsNode() {
 }
 func (v *GetProjectItemsNodeOrgOauthAppAccessRequestedAuditEntry) implementsGraphQLInterfaceGetProjectItemsNode() {
+}
+func (v *GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry) implementsGraphQLInterfaceGetProjectItemsNode() {
 }
 func (v *GetProjectItemsNodeOrgRemoveBillingManagerAuditEntry) implementsGraphQLInterfaceGetProjectItemsNode() {
 }
@@ -911,11 +917,17 @@ func __unmarshalGetProjectItemsNode(b []byte, v *GetProjectItemsNode) error {
 	case "OrgOauthAppAccessApprovedAuditEntry":
 		*v = new(GetProjectItemsNodeOrgOauthAppAccessApprovedAuditEntry)
 		return json.Unmarshal(b, *v)
+	case "OrgOauthAppAccessBlockedAuditEntry":
+		*v = new(GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry)
+		return json.Unmarshal(b, *v)
 	case "OrgOauthAppAccessDeniedAuditEntry":
 		*v = new(GetProjectItemsNodeOrgOauthAppAccessDeniedAuditEntry)
 		return json.Unmarshal(b, *v)
 	case "OrgOauthAppAccessRequestedAuditEntry":
 		*v = new(GetProjectItemsNodeOrgOauthAppAccessRequestedAuditEntry)
+		return json.Unmarshal(b, *v)
+	case "OrgOauthAppAccessUnblockedAuditEntry":
+		*v = new(GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry)
 		return json.Unmarshal(b, *v)
 	case "OrgRemoveBillingManagerAuditEntry":
 		*v = new(GetProjectItemsNodeOrgRemoveBillingManagerAuditEntry)
@@ -2157,6 +2169,14 @@ func __marshalGetProjectItemsNode(v *GetProjectItemsNode) ([]byte, error) {
 			*GetProjectItemsNodeOrgOauthAppAccessApprovedAuditEntry
 		}{typename, v}
 		return json.Marshal(result)
+	case *GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry:
+		typename = "OrgOauthAppAccessBlockedAuditEntry"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry
+		}{typename, v}
+		return json.Marshal(result)
 	case *GetProjectItemsNodeOrgOauthAppAccessDeniedAuditEntry:
 		typename = "OrgOauthAppAccessDeniedAuditEntry"
 
@@ -2171,6 +2191,14 @@ func __marshalGetProjectItemsNode(v *GetProjectItemsNode) ([]byte, error) {
 		result := struct {
 			TypeName string `json:"__typename"`
 			*GetProjectItemsNodeOrgOauthAppAccessRequestedAuditEntry
+		}{typename, v}
+		return json.Marshal(result)
+	case *GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry:
+		typename = "OrgOauthAppAccessUnblockedAuditEntry"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry
 		}{typename, v}
 		return json.Marshal(result)
 	case *GetProjectItemsNodeOrgRemoveBillingManagerAuditEntry:
@@ -4406,6 +4434,19 @@ func (v *GetProjectItemsNodeOrgOauthAppAccessApprovedAuditEntry) GetTypename() s
 	return v.Typename
 }
 
+// GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry includes the requested fields of the GraphQL type OrgOauthAppAccessBlockedAuditEntry.
+// The GraphQL type's documentation follows.
+//
+// Audit log entry for a org.oauth_app_access_blocked event.
+type GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry struct {
+	Typename string `json:"__typename"`
+}
+
+// GetTypename returns GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry.Typename, and is useful for accessing the field via an interface.
+func (v *GetProjectItemsNodeOrgOauthAppAccessBlockedAuditEntry) GetTypename() string {
+	return v.Typename
+}
+
 // GetProjectItemsNodeOrgOauthAppAccessDeniedAuditEntry includes the requested fields of the GraphQL type OrgOauthAppAccessDeniedAuditEntry.
 // The GraphQL type's documentation follows.
 //
@@ -4429,6 +4470,19 @@ type GetProjectItemsNodeOrgOauthAppAccessRequestedAuditEntry struct {
 
 // GetTypename returns GetProjectItemsNodeOrgOauthAppAccessRequestedAuditEntry.Typename, and is useful for accessing the field via an interface.
 func (v *GetProjectItemsNodeOrgOauthAppAccessRequestedAuditEntry) GetTypename() string {
+	return v.Typename
+}
+
+// GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry includes the requested fields of the GraphQL type OrgOauthAppAccessUnblockedAuditEntry.
+// The GraphQL type's documentation follows.
+//
+// Audit log entry for a org.oauth_app_access_unblocked event.
+type GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry struct {
+	Typename string `json:"__typename"`
+}
+
+// GetTypename returns GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry.Typename, and is useful for accessing the field via an interface.
+func (v *GetProjectItemsNodeOrgOauthAppAccessUnblockedAuditEntry) GetTypename() string {
 	return v.Typename
 }
 
@@ -7208,8 +7262,10 @@ func (v *LoginViewerUser) GetLogin() string { return v.Login }
 // ProjectV2ByIDNodeOrgInviteMemberAuditEntry
 // ProjectV2ByIDNodeOrgInviteToBusinessAuditEntry
 // ProjectV2ByIDNodeOrgOauthAppAccessApprovedAuditEntry
+// ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry
 // ProjectV2ByIDNodeOrgOauthAppAccessDeniedAuditEntry
 // ProjectV2ByIDNodeOrgOauthAppAccessRequestedAuditEntry
+// ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry
 // ProjectV2ByIDNodeOrgRemoveBillingManagerAuditEntry
 // ProjectV2ByIDNodeOrgRemoveMemberAuditEntry
 // ProjectV2ByIDNodeOrgRemoveOutsideCollaboratorAuditEntry
@@ -7474,9 +7530,13 @@ func (v *ProjectV2ByIDNodeOrgInviteToBusinessAuditEntry) implementsGraphQLInterf
 }
 func (v *ProjectV2ByIDNodeOrgOauthAppAccessApprovedAuditEntry) implementsGraphQLInterfaceProjectV2ByIDNode() {
 }
+func (v *ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry) implementsGraphQLInterfaceProjectV2ByIDNode() {
+}
 func (v *ProjectV2ByIDNodeOrgOauthAppAccessDeniedAuditEntry) implementsGraphQLInterfaceProjectV2ByIDNode() {
 }
 func (v *ProjectV2ByIDNodeOrgOauthAppAccessRequestedAuditEntry) implementsGraphQLInterfaceProjectV2ByIDNode() {
+}
+func (v *ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry) implementsGraphQLInterfaceProjectV2ByIDNode() {
 }
 func (v *ProjectV2ByIDNodeOrgRemoveBillingManagerAuditEntry) implementsGraphQLInterfaceProjectV2ByIDNode() {
 }
@@ -7970,11 +8030,17 @@ func __unmarshalProjectV2ByIDNode(b []byte, v *ProjectV2ByIDNode) error {
 	case "OrgOauthAppAccessApprovedAuditEntry":
 		*v = new(ProjectV2ByIDNodeOrgOauthAppAccessApprovedAuditEntry)
 		return json.Unmarshal(b, *v)
+	case "OrgOauthAppAccessBlockedAuditEntry":
+		*v = new(ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry)
+		return json.Unmarshal(b, *v)
 	case "OrgOauthAppAccessDeniedAuditEntry":
 		*v = new(ProjectV2ByIDNodeOrgOauthAppAccessDeniedAuditEntry)
 		return json.Unmarshal(b, *v)
 	case "OrgOauthAppAccessRequestedAuditEntry":
 		*v = new(ProjectV2ByIDNodeOrgOauthAppAccessRequestedAuditEntry)
+		return json.Unmarshal(b, *v)
+	case "OrgOauthAppAccessUnblockedAuditEntry":
+		*v = new(ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry)
 		return json.Unmarshal(b, *v)
 	case "OrgRemoveBillingManagerAuditEntry":
 		*v = new(ProjectV2ByIDNodeOrgRemoveBillingManagerAuditEntry)
@@ -9216,6 +9282,14 @@ func __marshalProjectV2ByIDNode(v *ProjectV2ByIDNode) ([]byte, error) {
 			*ProjectV2ByIDNodeOrgOauthAppAccessApprovedAuditEntry
 		}{typename, v}
 		return json.Marshal(result)
+	case *ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry:
+		typename = "OrgOauthAppAccessBlockedAuditEntry"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry
+		}{typename, v}
+		return json.Marshal(result)
 	case *ProjectV2ByIDNodeOrgOauthAppAccessDeniedAuditEntry:
 		typename = "OrgOauthAppAccessDeniedAuditEntry"
 
@@ -9230,6 +9304,14 @@ func __marshalProjectV2ByIDNode(v *ProjectV2ByIDNode) ([]byte, error) {
 		result := struct {
 			TypeName string `json:"__typename"`
 			*ProjectV2ByIDNodeOrgOauthAppAccessRequestedAuditEntry
+		}{typename, v}
+		return json.Marshal(result)
+	case *ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry:
+		typename = "OrgOauthAppAccessUnblockedAuditEntry"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry
 		}{typename, v}
 		return json.Marshal(result)
 	case *ProjectV2ByIDNodeOrgRemoveBillingManagerAuditEntry:
@@ -11461,6 +11543,17 @@ func (v *ProjectV2ByIDNodeOrgOauthAppAccessApprovedAuditEntry) GetTypename() str
 	return v.Typename
 }
 
+// ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry includes the requested fields of the GraphQL type OrgOauthAppAccessBlockedAuditEntry.
+// The GraphQL type's documentation follows.
+//
+// Audit log entry for a org.oauth_app_access_blocked event.
+type ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry struct {
+	Typename string `json:"__typename"`
+}
+
+// GetTypename returns ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry.Typename, and is useful for accessing the field via an interface.
+func (v *ProjectV2ByIDNodeOrgOauthAppAccessBlockedAuditEntry) GetTypename() string { return v.Typename }
+
 // ProjectV2ByIDNodeOrgOauthAppAccessDeniedAuditEntry includes the requested fields of the GraphQL type OrgOauthAppAccessDeniedAuditEntry.
 // The GraphQL type's documentation follows.
 //
@@ -11482,6 +11575,19 @@ type ProjectV2ByIDNodeOrgOauthAppAccessRequestedAuditEntry struct {
 
 // GetTypename returns ProjectV2ByIDNodeOrgOauthAppAccessRequestedAuditEntry.Typename, and is useful for accessing the field via an interface.
 func (v *ProjectV2ByIDNodeOrgOauthAppAccessRequestedAuditEntry) GetTypename() string {
+	return v.Typename
+}
+
+// ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry includes the requested fields of the GraphQL type OrgOauthAppAccessUnblockedAuditEntry.
+// The GraphQL type's documentation follows.
+//
+// Audit log entry for a org.oauth_app_access_unblocked event.
+type ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry struct {
+	Typename string `json:"__typename"`
+}
+
+// GetTypename returns ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry.Typename, and is useful for accessing the field via an interface.
+func (v *ProjectV2ByIDNodeOrgOauthAppAccessUnblockedAuditEntry) GetTypename() string {
 	return v.Typename
 }
 

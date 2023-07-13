@@ -49,3 +49,12 @@ linters-settings:
     require-explanation: true
     allow-no-explanation:
     require-specific: true
+  govet:
+    settings:
+      printf:
+        funcs:
+          - github.com/m-kuzmin/daily-reporter/internal/util/logging.Tracef
+          - github.com/m-kuzmin/daily-reporter/internal/util/logging.Debugf
+          - github.com/m-kuzmin/daily-reporter/internal/util/logging.Infof
+          - github.com/m-kuzmin/daily-reporter/internal/util/logging.Errorf
+          - github.com/m-kuzmin/daily-reporter/internal/util/logging.Fatalf

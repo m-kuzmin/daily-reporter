@@ -18,19 +18,20 @@ type SetDefaultProjectHandler struct {
 	SetDefaultProjectState
 }
 
-func (s *SetDefaultProjectHandler) GroupTextMessage(message update.GroupTextMessage) Transition {
-	return s.saveDefaultProject(context.Background(), message.Chat.ID, message.Text)
+func (s *SetDefaultProjectHandler) GroupTextMessage(ctx context.Context, message update.GroupTextMessage) Transition {
+	return s.saveDefaultProject(ctx, message.Chat.ID, message.Text)
 }
 
-func (s *SetDefaultProjectHandler) PrivateTextMessage(message update.PrivateTextMessage) Transition {
-	return s.saveDefaultProject(context.Background(), message.Chat.ID, message.Text)
+func (s *SetDefaultProjectHandler) PrivateTextMessage(ctx context.Context, message update.PrivateTextMessage,
+) Transition {
+	return s.saveDefaultProject(ctx, message.Chat.ID, message.Text)
 }
 
-func (s *SetDefaultProjectHandler) CallbackQuery(update.CallbackQuery) Transition {
-	return s.Ignore()
+func (s *SetDefaultProjectHandler) CallbackQuery(ctx context.Context, _ update.CallbackQuery) Transition {
+	return s.Ignore(ctx)
 }
 
-func (s *SetDefaultProjectHandler) Ignore() Transition {
+func (s *SetDefaultProjectHandler) Ignore(_ context.Context) Transition {
 	return NewTransition(s.SetDefaultProjectState, s.userData, response.Nothing())
 }
 
