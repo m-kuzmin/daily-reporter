@@ -1,13 +1,14 @@
 linters:
   enable-all: true
   disable:
-    - tagliatelle
     - godot
     - depguard
-    - exhaustivestruct
-    - exhaustruct
     - ireturn
     - godox
+    - tagliatelle
+    - exhaustivestruct # Replaced by exhaustruct
+
+
 severity:
   default-severity: error
   rules:
@@ -18,3 +19,33 @@ severity:
     - linters:
       - nlreturn
       severity: info
+
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - goconst
+        - varnamelen
+
+linters-settings:
+  exhaustruct:
+    include: []
+    exclude:
+      - "url.URL"
+      - "http.Client"
+  varnamelen:
+    ignore-names:
+      - id
+    ignore-decls:
+      - is bool
+      - ok bool
+  gomnd:
+    ignored-functions:
+      - '\.Some$'
+      - '\.UnwrapOr$'
+  nolintlint:
+    require-explanation: true
+    allow-no-explanation:
+    require-specific: true

@@ -67,3 +67,33 @@ func TestPercentPercent(t *testing.T) {
 		t.Errorf("percent.string is not foo, but %s", str)
 	}
 }
+
+func TestTemplatePopulate(t *testing.T) {
+	t.Parallel()
+
+	const yaml = `---
+templates:
+  foo:
+    bar: [foobar]
+...`
+
+	var repsonses struct {
+		Foo struct {
+			Bar string `template:"bar"`
+		} `template:"foo"`
+	}
+
+	templ, err := template.NewTemplate([]byte(yaml))
+	if err != nil {
+		t.Fatalf("While parsing template YAML: %s", err)
+	}
+
+	err = templ.Populate(&repsonses)
+	if err != nil {
+		t.Fatalf("While populating responses: %s", err)
+	}
+
+	if repsonses.Foo.Bar != "foobar" {
+		t.Fatalf(`responses.Foo.Bar != "foobar" // but instead: %q`, repsonses.Foo.Bar)
+	}
+}

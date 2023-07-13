@@ -7,18 +7,27 @@ import (
 	"syscall"
 
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram"
+	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/state"
 	"github.com/m-kuzmin/daily-reporter/internal/template"
 )
 
 func main() {
 	conf := mustNewConfig()
+	if conf.Telegram.Token == "" {
+		log.Fatal("No telegram token in config.toml, exiting.")
+	}
 
 	templ, err := template.LoadYAMLTemplate(conf.Telegram.Template)
 	if err != nil {
 		log.Fatalf("while loading yaml template from %s: %s", conf.Telegram.Template, err)
 	}
 
-	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token, templ)
+	var responses state.Responses
+	if err = templ.Populate(&responses); err != nil {
+		log.Fatalf("While populating state.Responses: %s", err)
+	}
+
+	client := telegram.NewClient("api.telegram.org", conf.Telegram.Token, responses)
 
 	fail := client.Start(conf.Telegram.Threads)
 

@@ -1,6 +1,7 @@
 ---
 vars:
   botDescription: "I am a bot that can generate a report from your todo list on Github Projects."
+  githubTokenSettingsPage: "https://github.com/settings/tokens"
 
 templates:
   root:
@@ -16,34 +17,124 @@ templates:
         %s
         Here are the commands I have:
 
+        <b><u>Groups and Private messages</u></b>
         • /help: you are here!
-        • /addApiKey: Set your GitHub API key (Private messages only)
+        • /dailyStatus: Generate a report from your GitHub project
+            • /dailyStatus <code>date</code> <code>&lt;DATE&gt;</code>: Set a specific day instead of the default (today). The generated report will have the date in italics.
+        • /setDefaultProject: If you have multiple projects you can set a default one for this chat. If you only have 1, then it is automatically the default.
+            • /setDefaultProject <code>&lt;ID&gt;</code>: The ID can be specified in the command itself.
+
+        <b><u>Private messages</u></b>
+        • /addApiKey: Set/delete your GitHub API key
+        • /listProjects: List your projects (if the API key is set)
+            • /listProjects <code>after</code> <code>&lt;CURSOR&gt;</code>: Used to show the next page
+
+        <i>Note:</i> <code>&lt;CURSOR&gt;</code> is a short (2+ characters) string used for pagination.
+        <code>&lt;ID&gt;</code> is a long string and all project IDs start with <code>PVT_</code>.
+
       - botDescription
-
-    unknownMessage: ["Sorry, I don't understand. Try /help maybe?"]
-
-    privateCommandUsed: ["This command only works in private (direct) messages for your privacy and security."]
 
     addApiKey:
       - |
-        Lets set your GitHub API key. I can only hold one at a time and I will use it to get information about your projects.
+        You can create a key on <a href="%s">this page</a>.
+        • Click Generate token in the top right corner
+        • Select Classic token
+        • Give your token a name
+        • Set the permissions to read:project
+        • Click Generate token
+        • Copy the token and send it here as a message.
 
-        You can create a key on <a href="https://github.com/settings/tokens/new">this page</a>. <b>Make sure</b>:
+        <b>Please only do these things:</b>
+        • Only give me tokens for accounts you own.
+        • Keep the token itself a secret before and after you send it to me because its like a password to view your projects and some details of your account.
+        • The key's permissions are <b>read:project</b> and <b>that is it</b>. I wont need any more permissions so dont give them to me!
 
-        • <b>You are the owner</b> of the account that you are adding the key for.
-        • Only you and me (this bot) know the key because <b>its like a password</b>.
-        • The key's permissions are <i>read:project</i> and <b>that is it</b>.
+        /cancel quits this menu
+        /none deletes the currently saved key
+      - githubTokenSettingsPage
 
-        Once you have generated the key, send it here as a message.
-        Be aware that once you close the key creation page you can no longer see it. You yourself dont need to keep any copies, but if you fail to paste it in you'll have to delete the old one and generate a new one.
+    dailyStatus:
+      - |
+        I will generate a report for <b><u>%%s</u></b>. First I need to know what's your discovery of the day?
+
+        /none: Omit "Discovery of the day" from the report.
+        /cancel: Cancel <code>/dailyStatus</code>
+
+    setDefaultProject:
+      - |
+        Please send me a project ID. You can find it under a project's title in /listProjects. It looks something like this:
+
+        Mg Project title (octocat/1)
+        <u><b>ID: PVT_...</b></u>
+
+        /none: Delete the currently saved default project
+        /cancel: Quit this menu
+
+
+    savedDefaultProject: &root_savedDefaultProject ["Saved %%q as the default project"]
+
+    useSetDefaultProject: ["You have too many projects. Use /setDefaultProject to define a default for this chat."]
+
+    lastProjectsPage: ["No more pages"]
+
+    privateCommandUsed: ["This command only works in private (direct) messages for your privacy and security."]
+
+    unknownMessage: ["Sorry, I don't understand. Try /help maybe?"]
+
+    noApiKeyAdded: &root_noApiKeyAdded ["You have not added a GitHub API key, so I can't see your projects. Please use /addApiKey"]
+
+    userHasZeroProjects:
+      - |
+        You seem to have 0 projects in your profile (and yes your API key works)!
+        Either that or your API key doesnt have read:project permissions.
+
+        Try adding a project or readding your API key using /addApiKey.
+
+    githubErrorGeneric: &root_githubErrorGeneric ["Something went wrong while contacting GitHub. Is your API key still valid?"]
 
   addApiKey:
-    keySentInPublicChat:
+    success:
       - |
-        If what you've sent me just now is a GitHub API token, <b>immediately</b> <a href="https://github.com/settings/tokens">revoke it</a>!
-        You should never try to add tokens in a public chat.
+        Nice to meet you, <a href="https://github.com/%%s">%%s</a>!
+        You probably want to use /help to see a command list.
+
+    cancel: ["Canceled."]
+
+    deleted: ["Key deleted."]
 
     badApiKey: ["Could not use your token, try again or /cancel"]
-    cancel: ["Canceled."]
-    success: ['Nice to meet you, <a href="https://github.com/%%s">%%s</a>!']
+
+    keySentInPublicChat:
+      - |
+        If what you've sent me just now is a GitHub API token, <b>immediately</b> <a href="%s">revoke it</a>!
+        You should never try to add tokens in a public chat.
+      - githubTokenSettingsPage
+
+    githubErrorGeneric: *root_githubErrorGeneric
+
+  dailyStatus:
+    discoveryOfTheDay:
+      - |
+        Please provide me your discovery of the day.
+
+        /none: Omit "Discovery of the day" from the report.
+        /cancel: Cancel <code>/dailyStatus</code>
+
+    questionsAndBlockers:
+      - |
+        Do you have any question/blockers?
+
+        /none: Omit "Questions/Blockers" from the report.
+        /cancel: Cancel <code>/dailyStatus</code>
+
+    noApiKeyAdded: *root_noApiKeyAdded
+
+    githubErrorGeneric: ["%s", githubErrorGeneric]
+
+  setDefaultProject:
+    success: *root_savedDefaultProject
+
+    noApiKeyAdded: *root_noApiKeyAdded
+
+    githubErrorGeneric: *root_githubErrorGeneric
 ...

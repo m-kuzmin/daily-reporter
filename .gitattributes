@@ -1,0 +1,14 @@
+go.mod -diff
+go.sum -diff linguist-generated
+
+assets/** -diff linguist-generated
+docs/** -diff linguist-documentation
+
+**/generated.go -diff linguist-generated
+**/schema.graphql -diff linguist-generated
+**/genqlient.yaml -diff linguist-generated
+
+**/.golangci.yaml -diff liguist-generated
+
+*.png -diff
+*.jpg -diff
