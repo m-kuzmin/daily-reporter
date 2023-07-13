@@ -90,10 +90,11 @@ type AddAPIKeyState struct {
 	RootState
 }
 
-func (AddAPIKeyState) Handler(userData UserSharedData, responses *Responses) Handler {
+func (s AddAPIKeyState) Handler(userData UserSharedData, responses *Responses) Handler {
 	return &AddAPIKeyHandler{
-		responses: &responses.AddAPIKey,
-		userData:  userData,
+		responses:      &responses.AddAPIKey,
+		userData:       userData,
+		AddAPIKeyState: s,
 	}
 }
 

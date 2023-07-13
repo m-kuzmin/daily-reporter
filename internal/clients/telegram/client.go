@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/m-kuzmin/daily-reporter/internal/clients/github"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/response"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/state"
 	"github.com/m-kuzmin/daily-reporter/internal/clients/telegram/update"
@@ -73,7 +74,7 @@ Creates a new client.
 Creating the client is not enough, you have to `Start()` it.
 */
 func NewClient(host, token string, responses state.Responses) Client {
-	return Client{
+	return Client{ //nolint:exhaustruct // The other fields are to be filled in inside Start()
 		requester: response.APIRequester{
 			Client:   http.Client{},
 			Scheme:   "https",
@@ -261,11 +262,7 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- update.Update) 
 
 					continue
 				} else if apiErr.Parameters.MigrateToChatID.IsSome() {
-					shutdown()
-					//nolint:goerr113
-					c.fail(fmt.Errorf("telegram requsted to migrate to chage id, which is an unsupported operation"))
-
-					return
+					panic("telegram requsted to migrate to chage id, which is an unsupported operation")
 				}
 
 				failures++
@@ -291,9 +288,7 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- update.Update) 
 		}
 	}
 
-	shutdown()
-	//nolint:goerr113
-	c.fail(fmt.Errorf("bot encountered too many errors (%d) while interacting with Telegram API", getUpdatesRetries))
+	panic(fmt.Sprintf("bot encountered too many errors (%d) while interacting with Telegram API", getUpdatesRetries))
 }
 
 /*
@@ -325,7 +320,9 @@ func (c *Client) stateQueue(updateCh <-chan update.Update, stateCh chan<- update
 	for upd := range updateCh {
 		upd := upd // creates a copy
 
-		futureState := borrowonce.NewImmediateFuture[state.State](&state.RootState{})
+		futureState := borrowonce.NewImmediateFuture[state.State](&state.RootState{
+			DefaultProject: option.None[github.ProjectID](),
+		})
 
 		if handle, ok := upd.StateID(); ok {
 			futureState = c.borrowState(handle)
@@ -358,7 +355,7 @@ func (c *Client) borrowState(handle string) *borrowonce.Future[state.State] {
 		return future
 	}
 
-	c.conversationStateStore.Set(handle, &state.RootState{})
+	c.conversationStateStore.Set(handle, &state.RootState{DefaultProject: option.None[github.ProjectID]()})
 
 	if future, exists := c.conversationStateStore.Borrow(handle); exists {
 		return future

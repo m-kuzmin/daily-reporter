@@ -71,7 +71,10 @@ NewTemplate creates a new template from bytes
 Returns an error if template source could not be parsed
 */
 func NewTemplate(source []byte) (Template, error) {
-	template := Template{}
+	template := Template{
+		Vars:      make(map[string]any),
+		Templates: make(map[string]map[string][]string),
+	}
 
 	err := yaml.Unmarshal(source, &template)
 	if err != nil {
@@ -88,6 +91,7 @@ Returned error indicates the group with this name doesn't exist in this template
 */
 func (t Template) Get(group string) (Group, error) {
 	if _, found := t.Templates[group]; !found {
+		//nolint:exhaustruct // False positive: the right side is an error
 		return Group{}, GroupNotFoundError{Name: group}
 	}
 

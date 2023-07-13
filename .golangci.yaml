@@ -6,8 +6,7 @@ linters:
     - ireturn
     - godox
     - tagliatelle
-    - exhaustruct # Unable to configure excludes
-    - exhaustivestruct # Unable to configure excludes
+    - exhaustivestruct # Replaced by exhaustruct
 
 
 severity:
@@ -31,6 +30,11 @@ issues:
         - varnamelen
 
 linters-settings:
+  exhaustruct:
+    include: []
+    exclude:
+      - "url.URL"
+      - "http.Client"
   varnamelen:
     ignore-names:
       - id
@@ -41,3 +45,7 @@ linters-settings:
     ignored-functions:
       - '\.Some$'
       - '\.UnwrapOr$'
+  nolintlint:
+    require-explanation: true
+    allow-no-explanation:
+    require-specific: true

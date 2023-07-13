@@ -40,7 +40,7 @@ func (s *DailyStatusHandler) Ignore() Transition {
 	return NewTransition(s.DailyStatusState, s.userData, response.Nothing())
 }
 
-//nolint:cyclop
+//nolint:cyclop // Splitting this into separate functions would just obscure the side-effects even more.
 func (s *DailyStatusHandler) handleDailyStatus(chatID update.ChatID, text string) Transition {
 	cmd, isCmd := slashcmd.Parse(text)
 
