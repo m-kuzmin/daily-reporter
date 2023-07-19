@@ -63,7 +63,7 @@ func (s *RootHandler) handleListProjects(
 	}
 
 	// Get the user's projects
-	projects, err := github.NewClient(key).ListViewerProjects(option.Some(projectsOnPage), afterCursor)
+	projects, err := github.NewClient(key).ListViewerProjects(projectsOnPage, afterCursor)
 	if err != nil {
 		log.Printf("While requesting user's projects: %s", err)
 

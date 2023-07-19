@@ -56,7 +56,7 @@ query Login {
 	return resp.Viewer.Login, nil
 }
 
-func (c Client) ListViewerProjects(first option.Option[int], after option.Option[ProjectCursor]) ([]ProjectV2, error) {
+func (c Client) ListViewerProjects(first uint, after option.Option[ProjectCursor]) ([]ProjectV2, error) {
 	_ = `# @genqlient
 query ViewerProjectsV2($first: Int!, $after: String) {
   viewer {
@@ -78,8 +78,7 @@ query ViewerProjectsV2($first: Int!, $after: String) {
   }
 }`
 
-	//nolint:gomnd
-	graphql, err := graphql.ViewerProjectsV2(context.Background(), c.client, first.UnwrapOr(10),
+	graphql, err := graphql.ViewerProjectsV2(context.Background(), c.client, int(first),
 		string(after.UnwrapOr("")))
 	if err != nil {
 		return []ProjectV2{}, fmt.Errorf("while requesting user's projects over GitHub GraphQL: %w", err)
