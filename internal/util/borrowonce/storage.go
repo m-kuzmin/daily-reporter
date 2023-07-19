@@ -36,7 +36,7 @@ func NewStorage[K comparable, V any]() Storage[K, V] {
 }
 
 /*
-Future allows you request a position in the borrow queue and Wait() your turn.
+Future allows you to request a position in the borrow queue and Wait() your turn.
 */
 type Future[V any] struct {
 	vMu sync.Mutex //nolint:structcheck
@@ -57,7 +57,7 @@ func (f *Future[V]) Wait() V {
 	return f.v
 }
 
-// Set store the value in the map. Panics if it already exists. Use Return for keys that are in the map already.
+// Set stores the value in the map. Panics if it already exists. Use Return for keys that are in the map already.
 func (s *Storage[K, V]) Set(key K, value V) { //nolint:golint // It's confusing *Future with *Storage
 	s.storeMu.Lock()
 	defer s.storeMu.Unlock()

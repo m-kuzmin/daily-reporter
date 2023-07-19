@@ -16,7 +16,7 @@ Parse parses a string into a command. If bool is false the string was not a comm
 The parser splits the arguments by space. To have an argument contain space you can surround it with `""`(surround with
 double quotes) or use `\ `(backslash followed by space). For simplicity even inside the quoted region a single backslash
 has to be written as two backslashes (`\\`). A literal double quote is `\"`(backslash followed by double quote). Quotes
-by themselves dont indicate an argument boundary.
+by themselves dont indicate an argument boundary (i.e `foo"bar"` is one argument).
 */
 func Parse(source string) (Command, bool) {
 	parts := strings.SplitN(source, " ", 2) //nolint:gomnd
@@ -44,21 +44,21 @@ func Parse(source string) (Command, bool) {
 
 func splitArgs(source string) []string {
 	var (
-		args      = []string{}
-		curArg    = ""
-		isQuoted  = false
-		isEscaped = false
+		args       = []string{}
+		currentArg = ""
+		isQuoted   = false
+		isEscaped  = false
 
 		appendToCurrent = func(char rune) {
-			curArg += string(char)
+			currentArg += string(char)
 		}
 
 		finalizeArg = func() {
-			if curArg != "" {
-				args = append(args, curArg)
+			if currentArg != "" {
+				args = append(args, currentArg)
 			}
 
-			curArg = ""
+			currentArg = ""
 		}
 	)
 
