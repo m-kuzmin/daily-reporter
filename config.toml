@@ -1,3 +1,6 @@
 [telegram]
 token = ""
 threads = 10
+
+[logging]
+level = "info"

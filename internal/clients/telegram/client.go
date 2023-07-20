@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -267,13 +266,13 @@ func (c *Client) getUpdates(ctx context.Context, updateCh chan<- update.Update) 
 				}
 
 				failures++
-				log.Printf("/getUpdates failure #%d: %s\n", failures, err)
+				logging.Errorf("/getUpdates failure #%d: %s\n", failures, err)
 
 				continue
 			}
 
 			if failures != 0 {
-				log.Printf("/getUpdates failure count reset to 0")
+				logging.Infof("/getUpdates failure count reset to 0")
 
 				failures = 0
 			}
@@ -411,14 +410,14 @@ func (c *Client) processUpdates(ctx context.Context, updateWithStateCh <-chan up
 		for _, action := range transition.Actions {
 			endpoint, body, err := action.JSONEncode()
 			if err != nil {
-				log.Printf("Error while encoding an action to JSON: %s", err)
+				logging.Errorf("While encoding an action to JSON: %s", err)
 
 				continue
 			}
 
 			_, err = c.requester.DoJSONEncoded(ctx, endpoint, body)
 			if err != nil {
-				log.Printf("Error while performing /%s: %s\n  Details:\n    %s", endpoint, err, body)
+				logging.Errorf("While performing /%s: %s\n  Details:\n    %s", endpoint, err, body)
 			}
 		}
 

@@ -58,3 +58,9 @@ linters-settings:
           - github.com/m-kuzmin/daily-reporter/internal/util/logging.Infof
           - github.com/m-kuzmin/daily-reporter/internal/util/logging.Errorf
           - github.com/m-kuzmin/daily-reporter/internal/util/logging.Fatalf
+  forbidigo:
+    forbid:
+      - ^(fmt\.print(|f|ln)|print|println)$
+      - ^log\..*$
+    exclude-godoc-examples: true
+    analyze-types: true

@@ -46,7 +46,7 @@ func (s *RootHandler) PrivateTextMessage(ctx context.Context, message update.Pri
 
 	case "dailystatus":
 		if date, is := cmd.NextAfter("date"); is {
-			logging.Tracef("%s %s /dailyStatus with date override", message.UpdateID.Log(), message.From.Log())
+			logging.Tracef("%s /dailyStatus with date override", message.UpdateID.Log())
 
 			return s.handleDailyStatus(ctx, message.UpdateID, message.From, message.Chat.ID, option.Some(date))
 		}
@@ -55,41 +55,44 @@ func (s *RootHandler) PrivateTextMessage(ctx context.Context, message update.Pri
 
 	case "addapikey":
 		if len(cmd.Args) == 1 {
-			logging.Tracef("%s %s /addApiKey inline mode", message.UpdateID.Log(), message.From.Log())
+			logging.Tracef("%s /addApiKey inline mode", message.UpdateID.Log())
 
-			return s.handleAddAPIKeyInline(ctx, message.From, message.Chat.ID, cmd.Args[0])
+			return s.handleAddAPIKeyInline(ctx, message.UpdateID, message.From, message.Chat.ID, cmd.Args[0])
 		}
 
-		logging.Debugf("%s %s Transition into AddApiKeyState", message.UpdateID.Log(), message.From.Log())
+		logging.Tracef("%s %s Transition into AddApiKeyState", message.UpdateID.Log(), message.From.Log())
 
 		return NewTransition(AddAPIKeyState{RootState: s.RootState}, s.userData, []response.BotAction{
 			response.NewSendMessage(message.Chat.ID, s.responses.AddAPIKey),
 		})
 
 	case listProjectsCommand:
-		after := option.None[github.ProjectCursor]()
-		if afterV, hasAfter := cmd.NextAfter("after"); hasAfter && afterV != "" {
-			after = option.Some(github.ProjectCursor(afterV))
+		if after, isSome := cmd.NextAfter("after"); isSome && after != "" {
+			logging.Tracef("%s after cursor: %s", message.UpdateID.Log(), after)
+
+			return s.handleListProjects(ctx, message.From, message.Chat.ID, option.Some(github.ProjectCursor(after)))
 		}
 
-		return s.handleListProjects(ctx, message.From, message.Chat.ID, after)
+		return s.handleListProjects(ctx, message.From, message.Chat.ID, option.None[github.ProjectCursor]())
 
 	case "setdefaultproject":
+		if s.userData.GithubAPIKey.IsNone() {
+			logging.Tracef("%s Tried to set default project without adding an API key", message.UpdateID.Log())
+
+			return s.replyWithMessage(message.Chat.ID, s.responses.NoAPIKeyAdded)
+		}
+
 		if len(cmd.Args) == 1 {
+			logging.Tracef("%s %s /setdefaultproject inline mode", message.UpdateID.Log(), message.From.Log())
+
 			return s.saveDefaultProject(ctx, cmd.Args[0], message.Chat.ID)
 		}
 
-		if s.userData.GithubAPIKey.IsSome() {
-			logging.Tracef("%s Transition into SetDefaultProjectState", message.Log())
+		logging.Tracef("%s %s Transition into SetDefaultProjectState", message.UpdateID.Log(), message.From.Log())
 
-			return NewTransition(SetDefaultProjectState{RootState: s.RootState}, s.userData, []response.BotAction{
-				response.NewSendMessage(message.Chat.ID, s.responses.SetDefaultProject),
-			})
-		}
-
-		logging.Tracef("%s Tried to set default project without adding an API key", message.Log())
-
-		return s.replyWithMessage(message.Chat.ID, s.responses.NoAPIKeyAdded)
+		return NewTransition(SetDefaultProjectState{RootState: s.RootState}, s.userData, []response.BotAction{
+			response.NewSendMessage(message.Chat.ID, s.responses.SetDefaultProject),
+		})
 	}
 
 	logging.Tracef("%s Command ignored", message.Log())
@@ -117,7 +120,7 @@ func (s *RootHandler) GroupTextMessage(ctx context.Context, message update.Group
 
 	case "dailystatus":
 		if date, is := cmd.NextAfter("date"); is {
-			logging.Infof("%s /dailyStatus with date override", message.From.Log())
+			logging.Tracef("%s /dailyStatus with date override", message.From.Log())
 
 			return s.handleDailyStatus(ctx, message.UpdateID, message.From, message.Chat.ID, option.Some(date))
 		}
@@ -126,6 +129,8 @@ func (s *RootHandler) GroupTextMessage(ctx context.Context, message update.Group
 
 	case "addapikey":
 		if len(cmd.Args) != 0 {
+			logging.Tracef("%s %s /addApiKey inline mode", message.UpdateID.Log(), message.From.Log())
+
 			return s.replyWithMessage(message.Chat.ID, s.responses.APIKeySentInPublicChat)
 		}
 
@@ -135,17 +140,23 @@ func (s *RootHandler) GroupTextMessage(ctx context.Context, message update.Group
 		return s.replyWithMessage(message.Chat.ID, s.responses.PrivateCommandUsed)
 
 	case "setdefaultproject":
+		if s.userData.GithubAPIKey.IsNone() {
+			logging.Tracef("%s Tried to set default project without adding an API key", message.UpdateID.Log())
+
+			return s.replyWithMessage(message.Chat.ID, s.responses.NoAPIKeyAdded)
+		}
+
 		if len(cmd.Args) == 1 {
+			logging.Tracef("%s /setdefaultproject inline mode", message.UpdateID.Log())
+
 			return s.saveDefaultProject(ctx, cmd.Args[0], message.Chat.ID)
 		}
 
-		if s.userData.GithubAPIKey.IsSome() {
-			return NewTransition(SetDefaultProjectState{RootState: s.RootState}, s.userData, []response.BotAction{
-				response.NewSendMessage(message.Chat.ID, s.responses.SetDefaultProject),
-			})
-		}
+		logging.Tracef("%s Transition into SetDefaultProjectState", message.UpdateID.Log())
 
-		return s.replyWithMessage(message.Chat.ID, s.responses.NoAPIKeyAdded)
+		return NewTransition(SetDefaultProjectState{RootState: s.RootState}, s.userData, []response.BotAction{
+			response.NewSendMessage(message.Chat.ID, s.responses.SetDefaultProject),
+		})
 	}
 
 	logging.Tracef("%s Command ignored", message.Log())
@@ -167,20 +178,21 @@ func (s *RootHandler) Ignore(_ context.Context) Transition {
 	return NewTransition(s.RootState, s.userData, response.Nothing())
 }
 
-func (s *RootHandler) handleAddAPIKeyInline(ctx context.Context, user update.User, chatID update.ChatID, key string,
+func (s *RootHandler) handleAddAPIKeyInline(ctx context.Context, upd update.UpdateID, user update.User,
+	chatID update.ChatID, key string,
 ) Transition {
 	client := github.NewClient(key)
 
 	login, err := client.Login(ctx)
 	if err != nil {
-		logging.Errorf("While requesting user's GitHub username: %s", err)
+		logging.Errorf("%s While requesting user's GitHub username: %s", upd.Log(), err)
 
 		return s.replyWithMessage(chatID, s.responses.BadAPIKey)
 	}
 
 	s.userData.GithubAPIKey = option.Some(key)
 
-	logging.Infof("%s Saved GitHub API Key", user.Log())
+	logging.Infof("%s %s Saved GitHub API Key", upd.Log(), user.Log())
 
 	return NewTransition(s.RootState, s.userData, []response.BotAction{
 		response.NewSendMessage(chatID, fmt.Sprintf(s.responses.APIKeyAdded, login, login)).EnableWebPreview(),

@@ -35,7 +35,7 @@ func mustNewConfig() Config {
 	}
 
 	if _, err := toml.DecodeFile("config.toml", &conf); err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //nolint:forbidigo // package logging hasn't been initialized yet
 	}
 
 	return conf
