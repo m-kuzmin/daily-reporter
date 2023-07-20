@@ -138,7 +138,12 @@ Populate fills a struct containing only `template:""`-tagged string fields with 
 of the template field tag is not in the `Group` returns an error.
 */
 func (g Group) Populate(typed interface{}) error {
-	valueOf := reflect.ValueOf(typed).Elem()
+	rv := reflect.ValueOf(typed)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return &InvalidTypeError{Type: reflect.TypeOf(typed).Name()}
+	}
+
+	valueOf := rv.Elem()
 	typeOf := reflect.TypeOf(typed).Elem()
 
 	for i := 0; i < valueOf.NumField(); i++ {
@@ -196,4 +201,14 @@ type NoTemplateStringError struct {
 
 func (e NoTemplateStringError) Error() string {
 	return fmt.Sprintf("no template string found for tag %q in struct %s", e.Tag, e.Struct)
+}
+
+type InvalidTypeError struct {
+	Type string
+}
+
+func (e InvalidTypeError) Error() string {
+	return fmt.Sprintf(
+		"template.(Group).Populate() only works with non-nil pointers. A `%s` was passed in instead",
+		e.Type)
 }

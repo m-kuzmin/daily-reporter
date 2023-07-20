@@ -1,6 +1,7 @@
 package template_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -66,4 +67,32 @@ func TestPercentPercent(t *testing.T) {
 	if foo := "foo"; fmt.Sprintf(str, foo) != foo {
 		t.Errorf("percent.string is not foo, but %s", str)
 	}
+}
+
+func TestPopulateNilPtr(t *testing.T) {
+	t.Parallel()
+
+	templ, err := template.NewTemplate([]byte(yaml))
+	if err != nil {
+		t.Errorf("While parsing yaml template: %s", err)
+	}
+
+	group, err := templ.Get("foo")
+	if err != nil {
+		t.Errorf("While getting group foo: %s", err)
+	}
+
+	type Foo struct{}
+
+	var (
+		sPtr    *Foo
+		errType *template.InvalidTypeError
+	)
+
+	err = group.Populate(sPtr)
+	if errors.As(err, &errType) {
+		return
+	}
+
+	t.Errorf("Expected InvalidTypeError for nil pointer, but got: %v", err)
 }
