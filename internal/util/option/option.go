@@ -28,16 +28,6 @@ func (o Option[T]) IsNone() bool {
 	return o.value == nil
 }
 
-func (o Option[T]) MustUnwrap() T {
-	if v, isSome := o.Unwrap(); isSome {
-		return v
-	}
-
-	var t T
-
-	panic(fmt.Sprintf("MustUnwrap called on a None Option[%T].", t))
-}
-
 func (o Option[T]) Unwrap() (T, bool) {
 	if o.IsSome() {
 		return o.value.(T), true //nolint:forcetypeassert // Type T is guaranteed
