@@ -23,7 +23,7 @@ func Parse(source string) (Command, bool) {
 	parse := func(firstWord, wordsAfter string) (Command, bool) {
 		method, ok := strings.CutPrefix(firstWord, "/")
 		if !ok || method == "" {
-			return Command{}, false //nolint:exhaustruct // False indicates the left side is invalid
+			return Command{}, false
 		}
 
 		return Command{
@@ -34,7 +34,7 @@ func Parse(source string) (Command, bool) {
 
 	switch len(parts) {
 	case 0:
-		return Command{}, false //nolint:exhaustruct // False indicates the left side is invalid
+		return Command{}, false
 	case 1:
 		return parse(parts[0], "")
 	default:

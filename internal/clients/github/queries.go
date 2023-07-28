@@ -211,7 +211,6 @@ query ProjectV2ByID($id: ID!) {
 
 	project, is := resp.Node.(*graphql.ProjectV2ByIDNodeProjectV2)
 	if !is {
-		//nolint:exhaustruct // False positive because right side isnt detected as err
 		return ProjectV2{}, EmptyResponseError{
 			Message: "while requesting projectv2 by ID the `node ... on TYPE` returned nil",
 		}

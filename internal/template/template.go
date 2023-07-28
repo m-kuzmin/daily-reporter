@@ -91,7 +91,6 @@ Returned error indicates the group with this name doesn't exist in this template
 */
 func (t Template) Get(group string) (Group, error) {
 	if _, found := t.Templates[group]; !found {
-		//nolint:exhaustruct // False positive: the right side is an error
 		return Group{}, GroupNotFoundError{Name: group}
 	}
 

@@ -74,7 +74,7 @@ Creates a new client.
 Creating the client is not enough, you have to `Start()` it.
 */
 func NewClient(host, token string, responses state.Responses) Client {
-	return Client{ //nolint:exhaustruct // The other fields are to be filled in inside Start()
+	return Client{
 		requester: response.APIRequester{
 			Client:   http.Client{},
 			Scheme:   "https",
